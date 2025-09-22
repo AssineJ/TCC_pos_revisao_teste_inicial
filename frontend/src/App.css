@@ -61,6 +61,7 @@ header p {
   color: #64748b;
 }
 
+=======
 .form-group input,
 .form-group textarea {
   border-radius: 1rem;
@@ -207,6 +208,7 @@ header p {
   text-decoration: underline;
 }
 
+=======
 .result-header {
   display: flex;
   flex-direction: column;

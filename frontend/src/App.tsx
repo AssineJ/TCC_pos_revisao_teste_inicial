@@ -15,6 +15,7 @@ type UrlCheckResponse = CheckResponse & {
   url: string;
 };
 
+=======
 type RecentNewsItem = {
   id: number | string;
   title: string;
@@ -40,6 +41,8 @@ const VERDICT_CONFIG: Record<VerdictKey, VerdictConfig> = {
     tips: [
       'Ainda assim, confirme a notícia em portais reconhecidos (G1, Agência Brasil, Folha, Estadão).',
       'Leia a matéria completa antes de compartilhar e confirme se outras fontes também publicaram o conteúdo.',
+=======
+      'Compartilhe somente após ler o texto completo e conferir se o título condiz com o corpo da matéria.',
       'Mantenha o hábito de acompanhar fontes oficiais relacionadas ao tema tratado.'
     ]
   },
@@ -131,6 +134,12 @@ function App(): JSX.Element {
   const [formError, setFormError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [result, setResult] = useState<UrlCheckResponse | null>(null);
+=======
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [result, setResult] = useState<CheckResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsItems, setNewsItems] = useState<RecentNewsItem[]>([]);
@@ -203,6 +212,17 @@ function App(): JSX.Element {
     } catch (error) {
       console.error(error);
       setFormError('Informe uma URL válida iniciando com http:// ou https://.');
+=======
+    const sanitizedTitle = title.trim();
+    const sanitizedContent = content.trim();
+
+    if (!sanitizedTitle || !sanitizedContent) {
+      setFormError('Informe o título e o conteúdo da notícia para realizar a verificação.');
+      return;
+    }
+
+    if (sanitizedContent.length < 60) {
+      setFormError('Insira pelo menos 60 caracteres no conteúdo para obter uma análise consistente.');
       return;
     }
 
@@ -210,12 +230,17 @@ function App(): JSX.Element {
 
     try {
       const response = await fetch(`${API_URL}/check-news-url`, {
+=======
+      const response = await fetch(`${API_URL}/check-news`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           url: normalizedUrl
+=======
+          title: sanitizedTitle,
+          content: sanitizedContent
         })
       });
 
@@ -226,6 +251,8 @@ function App(): JSX.Element {
       }
 
       setResult(payload as UrlCheckResponse);
+=======
+      setResult(payload as CheckResponse);
     } catch (error) {
       console.error(error);
       setResult(null);
@@ -239,6 +266,9 @@ function App(): JSX.Element {
 
   const handleClear = () => {
     setUrl('');
+=======
+    setTitle('');
+    setContent('');
     setFormError(null);
     setRequestError(null);
     setCollectMessage(null);
@@ -281,6 +311,8 @@ function App(): JSX.Element {
           <h1>Detector de Fake News BR</h1>
           <p>
             Cole uma URL de notícia para que o sistema faça a leitura automática do conteúdo e aponte o grau de confiabilidade.
+=======
+            Analise notícias em segundos com o suporte da nossa API FastAPI treinada com conteúdos brasileiros.
           </p>
         </header>
 
@@ -299,6 +331,27 @@ function App(): JSX.Element {
                 inputMode="url"
               />
               <small className="form-hint">Cole o link completo começando com http:// ou https://.</small>
+=======
+              <label htmlFor="news-title">Título da notícia</label>
+              <input
+                id="news-title"
+                name="title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Ex.: Governo anuncia novo programa de incentivo à energia solar"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="news-content">Conteúdo da notícia</label>
+              <textarea
+                id="news-content"
+                name="content"
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                placeholder="Cole aqui o corpo completo da notícia para obter uma análise mais precisa"
+              />
             </div>
 
             {formError && <div className="alert alert--error">{formError}</div>}
@@ -316,6 +369,8 @@ function App(): JSX.Element {
                 disabled={loading}
               >
                 Limpar
+=======
+                Limpar campos
               </button>
             </div>
           </form>
@@ -349,6 +404,7 @@ function App(): JSX.Element {
               </a>
             </div>
 
+=======
             <div className="probability-meter">
               <div className="probability-meter__label">
                 <span>Probabilidade de ser fake</span>
@@ -439,6 +495,8 @@ function App(): JSX.Element {
         <p className="footer">
           A API aceita requisições REST padrão. Defina a variável de ambiente <code>VITE_API_URL</code> para apontar o front-end
           para outra origem.
+=======
+          A API aceita requisições REST padrão. Defina a variável de ambiente <code>VITE_API_URL</code> para apontar o front-end para outra origem.
         </p>
       </div>
     </div>

@@ -120,6 +120,11 @@ Além da interface em Gradio, o repositório conta com uma aplicação web moder
 
 - Formulário para envio da URL completa da notícia a ser analisada;
 - Exibição do veredito com barra de probabilidade, resumo da matéria e orientações de checagem;
+=======
+Além da interface em Gradio, o repositório conta com uma aplicação web moderna em React localizada na pasta `frontend/`. Ela consome diretamente a API FastAPI (`/check-news`, `/recent-news` e `/collect-news`) e oferece:
+
+- Formulário para envio de título e conteúdo completos da notícia;
+- Exibição do veredito com barra de probabilidade e orientações de checagem;
 - Painel com as últimas notícias coletadas e botão para disparar a coleta automática.
 
 Para executar o front-end:
@@ -132,6 +137,7 @@ npm run dev
 
 Ao abrir a interface, cole o link da matéria (com `http://` ou `https://`) no campo principal. O front-end solicita a checagem via endpoint `/check-news-url`, que faz o scraping do texto, executa o classificador e retorna o veredito acompanhado de um resumo da notícia.
 
+=======
 Por padrão a aplicação utiliza `http://localhost:8000` como URL da API. Para apontar para outra instância basta definir a variável `VITE_API_URL` antes de iniciar o servidor de desenvolvimento ou durante o build:
 
 ```
