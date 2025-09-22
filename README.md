@@ -52,42 +52,6 @@ python-dotenv>=0.19.0
 
 ##  Componentes
 
-### Front-end Streamlit (verificação por URL)
-
-O arquivo `fake-news-detector-br/streamlit_app.py` disponibiliza uma interface web em
-Streamlit capaz de consumir a API FastAPI e validar automaticamente notícias a partir
-de uma URL.
-
-1. **Inicialize a API**
-   ```bash
-   uvicorn fake-news-detector-br.app.main:app --reload
-   ```
-
-2. **(Opcional) Defina a variável `API_URL`** caso o backend esteja publicado fora
-   de `http://localhost:8000`:
-   ```bash
-   # Linux/macOS
-   export API_URL="https://sua-api"
-
-   # Windows PowerShell
-   $env:API_URL="https://sua-api"
-   ```
-
-3. **Execute o Streamlit**
-   ```bash
-   streamlit run fake-news-detector-br/streamlit_app.py
-   ```
-
-4. **Como testar a interface**
-   - Cole a URL completa de uma notícia (começando com `http://` ou `https://`) e
-     clique em “Verificar URL”. A aplicação solicitará o endpoint `/check-news-url`,
-     exibirá o título extraído, um resumo e o veredito com a probabilidade estimada.
-   - Utilize a aba “Verificação manual” para validar textos inseridos manualmente
-     através do endpoint `/check-news` sempre que precisar inspecionar conteúdos que
-     não estejam disponíveis publicamente.
-   - Clique em “Atualizar lista” para chamar `/recent-news` e confirmar se as últimas
-     matérias coletadas pelo backend aparecem com fonte, data e link originais.
-
 ### Interface Web (app.py)
 
 Este arquivo implementa uma interface web usando Gradio que permite aos usuários inserir textos de notícias e obter classificações em tempo real.
@@ -113,44 +77,6 @@ interface = gr.Interface(
 
 interface.launch()
 ```
-
-### Front-end moderno (React + Vite)
-
-Além da interface em Gradio, o repositório conta com uma aplicação web moderna em React localizada na pasta `frontend/`. Ela consome diretamente a API FastAPI (`/check-news-url`, `/check-news`, `/recent-news` e `/collect-news`) e oferece:
-
-- Formulário para envio da URL completa da notícia a ser analisada;
-- Exibição do veredito com barra de probabilidade, resumo da matéria e orientações de checagem;
-=======
-Além da interface em Gradio, o repositório conta com uma aplicação web moderna em React localizada na pasta `frontend/`. Ela consome diretamente a API FastAPI (`/check-news`, `/recent-news` e `/collect-news`) e oferece:
-
-- Formulário para envio de título e conteúdo completos da notícia;
-- Exibição do veredito com barra de probabilidade e orientações de checagem;
-- Painel com as últimas notícias coletadas e botão para disparar a coleta automática.
-
-Para executar o front-end:
-
-```
-cd frontend
-npm install
-npm run dev
-```
-
-Ao abrir a interface, cole o link da matéria (com `http://` ou `https://`) no campo principal. O front-end solicita a checagem via endpoint `/check-news-url`, que faz o scraping do texto, executa o classificador e retorna o veredito acompanhado de um resumo da notícia.
-
-=======
-Por padrão a aplicação utiliza `http://localhost:8000` como URL da API. Para apontar para outra instância basta definir a variável `VITE_API_URL` antes de iniciar o servidor de desenvolvimento ou durante o build:
-
-```
-# Linux/macOS
-export VITE_API_URL="https://sua-api"
-npm run dev
-
-# Windows PowerShell
-$env:VITE_API_URL="https://sua-api"
-npm run dev
-```
-
-Para gerar a versão de produção utilize `npm run build` e sirva o conteúdo de `frontend/dist` com o servidor de sua preferência.
 
 ### Validação de Notícias (validar_noticias.py)
 
