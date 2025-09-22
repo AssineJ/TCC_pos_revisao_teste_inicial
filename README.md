@@ -3,6 +3,21 @@ Repositório ao  TCC - ANÁLISE E DESENVOLVIMENTO DE SISTEMAS PARA COMBATE E DET
 
 Este é um projeto de detecção de notícias falsas (fake news) que utiliza aprendizado de máquina para classificar textos como verdadeiros ou falsos.
 
+## Verificação rápida via URL
+
+Foi adicionada uma interface web estática em `frontend/` que permite verificar notícias apenas informando o link da matéria.
+
+1. Inicialize a API FastAPI:
+
+   ```bash
+   uvicorn fake-news-detector-br.app.main:app --reload
+   ```
+
+2. Abra o arquivo `frontend/index.html` em um navegador ou sirva-o com qualquer servidor HTTP estático.
+3. Informe a URL completa da notícia e clique em **“Analisar notícia”**.
+
+A interface consome o novo endpoint `POST /check-news-url`, que busca o conteúdo do link, executa a validação no modelo de IA e informa o veredito, a probabilidade estimada de ser uma notícia falsa e um resumo do texto encontrado.
+
 ## Estrutura do projeto
 
 O projeto é composto por três principais arquivos:
