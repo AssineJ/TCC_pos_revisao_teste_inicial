@@ -78,6 +78,36 @@ interface = gr.Interface(
 interface.launch()
 ```
 
+### Front-end moderno (React + Vite)
+
+Além da interface em Gradio, o repositório conta com uma aplicação web moderna em React localizada na pasta `frontend/`. Ela consome diretamente a API FastAPI (`/check-news`, `/recent-news` e `/collect-news`) e oferece:
+
+- Formulário para envio de título e conteúdo completos da notícia;
+- Exibição do veredito com barra de probabilidade e orientações de checagem;
+- Painel com as últimas notícias coletadas e botão para disparar a coleta automática.
+
+Para executar o front-end:
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Por padrão a aplicação utiliza `http://localhost:8000` como URL da API. Para apontar para outra instância basta definir a variável `VITE_API_URL` antes de iniciar o servidor de desenvolvimento ou durante o build:
+
+```
+# Linux/macOS
+export VITE_API_URL="https://sua-api"
+npm run dev
+
+# Windows PowerShell
+$env:VITE_API_URL="https://sua-api"
+npm run dev
+```
+
+Para gerar a versão de produção utilize `npm run build` e sirva o conteúdo de `frontend/dist` com o servidor de sua preferência.
+
 ### Validação de Notícias (validar_noticias.py)
 
 Este script permite validar várias notícias em lote, útil para testar o desempenho do modelo com novos dados.
