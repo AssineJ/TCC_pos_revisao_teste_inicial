@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detector de Fake News BR</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <h1>📰 Detector de Fake News BR</h1>
+        <p>
+          Cole o link de uma notícia brasileira e descubra em segundos se ela é
+          confiável ou se pode ser enganosa.
+        </p>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card" aria-labelledby="form-title">
+        <h2 id="form-title">Verifique uma notícia pelo link</h2>
+        <form id="check-form" novalidate>
+          <label class="field" for="news-url">
+            <span>URL da notícia</span>
+            <input
+              type="url"
+              id="news-url"
+              name="news-url"
+              placeholder="https://www.exemplo.com/noticia"
+              required
+              autocomplete="off"
+            />
+          </label>
+
+          <details class="advanced-options">
+            <summary>Configurações avançadas</summary>
+            <label class="field" for="api-base">
+              <span>URL da API (FastAPI)</span>
+              <input
+                type="url"
+                id="api-base"
+                name="api-base"
+                placeholder="http://localhost:8000"
+                autocomplete="off"
+              />
+              <small>
+                Informe somente se a API estiver hospedada em outro endereço.
+              </small>
+            </label>
+          </details>
+
+          <button type="submit" class="primary-button">Analisar notícia</button>
+        </form>
+        <p id="form-feedback" class="feedback" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="result-card" class="card result hidden" aria-live="polite">
+        <div class="result-header">
+          <p class="result-label">Resultado</p>
+          <p id="result-verdict" class="result-verdict"></p>
+        </div>
+        <p id="result-message" class="result-message"></p>
+        <div class="progress-wrapper hidden" id="probability-wrapper">
+          <label for="probability-bar">Probabilidade de ser falsa</label>
+          <div class="progress-bar" id="probability-bar">
+            <span id="probability-value"></span>
+          </div>
+          <p id="probability-text" class="probability-text"></p>
+        </div>
+        <div id="article-info" class="article-info hidden">
+          <h3>O que encontramos:</h3>
+          <p id="article-title"></p>
+          <p id="article-excerpt" class="excerpt"></p>
+          <a id="article-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+        </div>
+      </section>
+
+      <section class="card tips">
+        <h2>Dicas de uso</h2>
+        <ul>
+          <li>
+            Prefira links completos (incluindo <strong>https://</strong>) para
+            obter melhores resultados.
+          </li>
+          <li>
+            A ferramenta usa técnicas de processamento de linguagem natural para
+            estimar a probabilidade de uma notícia ser falsa.
+          </li>
+          <li>
+            Sempre confirme informações em mais de uma fonte confiável antes de
+            compartilhar.
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>
+          Este projeto utiliza a API <strong>Fake News Detector BR</strong> para
+          analisar notícias brasileiras em tempo real.
+        </p>
+      </div>
+    </footer>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
