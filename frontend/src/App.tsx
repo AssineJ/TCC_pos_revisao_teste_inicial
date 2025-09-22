@@ -9,6 +9,13 @@ type CheckResponse = {
   message: string;
 };
 
+type UrlCheckResponse = CheckResponse & {
+  extracted_title: string | null;
+  content_preview: string | null;
+  url: string;
+};
+
+=======
 type RecentNewsItem = {
   id: number | string;
   title: string;
@@ -33,6 +40,8 @@ const VERDICT_CONFIG: Record<VerdictKey, VerdictConfig> = {
     headline: 'Sinais de conteúdo confiável',
     tips: [
       'Ainda assim, confirme a notícia em portais reconhecidos (G1, Agência Brasil, Folha, Estadão).',
+      'Leia a matéria completa antes de compartilhar e confirme se outras fontes também publicaram o conteúdo.',
+=======
       'Compartilhe somente após ler o texto completo e conferir se o título condiz com o corpo da matéria.',
       'Mantenha o hábito de acompanhar fontes oficiais relacionadas ao tema tratado.'
     ]
@@ -121,6 +130,11 @@ const meterClassMap: Record<VerdictTone, string> = {
 };
 
 function App(): JSX.Element {
+  const [url, setUrl] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [result, setResult] = useState<UrlCheckResponse | null>(null);
+=======
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -182,6 +196,23 @@ function App(): JSX.Element {
     setRequestError(null);
     setCollectMessage(null);
 
+    const sanitizedUrl = url.trim();
+    if (!sanitizedUrl) {
+      setFormError('Informe a URL completa da notícia que deseja validar.');
+      return;
+    }
+
+    let normalizedUrl: string;
+    try {
+      const parsed = new URL(sanitizedUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Protocol inválido');
+      }
+      normalizedUrl = parsed.toString();
+    } catch (error) {
+      console.error(error);
+      setFormError('Informe uma URL válida iniciando com http:// ou https://.');
+=======
     const sanitizedTitle = title.trim();
     const sanitizedContent = content.trim();
 
@@ -198,12 +229,16 @@ function App(): JSX.Element {
     setLoading(true);
 
     try {
+      const response = await fetch(`${API_URL}/check-news-url`, {
+=======
       const response = await fetch(`${API_URL}/check-news`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          url: normalizedUrl
+=======
           title: sanitizedTitle,
           content: sanitizedContent
         })
@@ -215,6 +250,8 @@ function App(): JSX.Element {
         throw new Error(detail ?? 'Não foi possível verificar a notícia.');
       }
 
+      setResult(payload as UrlCheckResponse);
+=======
       setResult(payload as CheckResponse);
     } catch (error) {
       console.error(error);
@@ -228,6 +265,8 @@ function App(): JSX.Element {
   };
 
   const handleClear = () => {
+    setUrl('');
+=======
     setTitle('');
     setContent('');
     setFormError(null);
@@ -271,6 +310,8 @@ function App(): JSX.Element {
         <header>
           <h1>Detector de Fake News BR</h1>
           <p>
+            Cole uma URL de notícia para que o sistema faça a leitura automática do conteúdo e aponte o grau de confiabilidade.
+=======
             Analise notícias em segundos com o suporte da nossa API FastAPI treinada com conteúdos brasileiros.
           </p>
         </header>
@@ -278,6 +319,19 @@ function App(): JSX.Element {
         <section className="card">
           <form className="check-form" onSubmit={handleSubmit}>
             <div className="form-group">
+              <label htmlFor="news-url">URL da notícia</label>
+              <input
+                id="news-url"
+                name="url"
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://www.exemplo.com/noticia-importante"
+                autoComplete="off"
+                inputMode="url"
+              />
+              <small className="form-hint">Cole o link completo começando com http:// ou https://.</small>
+=======
               <label htmlFor="news-title">Título da notícia</label>
               <input
                 id="news-title"
@@ -314,6 +368,8 @@ function App(): JSX.Element {
                 onClick={handleClear}
                 disabled={loading}
               >
+                Limpar
+=======
                 Limpar campos
               </button>
             </div>
@@ -330,6 +386,25 @@ function App(): JSX.Element {
               <p>{result.message}</p>
             </div>
 
+            <div className="article-preview">
+              <h3>Matéria analisada</h3>
+              <p className="article-preview__title">
+                {result.extracted_title ?? 'Título não identificado'}
+              </p>
+              {result.content_preview && (
+                <p className="article-preview__snippet">{result.content_preview}</p>
+              )}
+              <a
+                className="article-preview__link"
+                href={result.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Ler notícia original
+              </a>
+            </div>
+
+=======
             <div className="probability-meter">
               <div className="probability-meter__label">
                 <span>Probabilidade de ser fake</span>
@@ -418,6 +493,9 @@ function App(): JSX.Element {
         </section>
 
         <p className="footer">
+          A API aceita requisições REST padrão. Defina a variável de ambiente <code>VITE_API_URL</code> para apontar o front-end
+          para outra origem.
+=======
           A API aceita requisições REST padrão. Defina a variável de ambiente <code>VITE_API_URL</code> para apontar o front-end para outra origem.
         </p>
       </div>
