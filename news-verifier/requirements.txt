@@ -1,0 +1,7 @@
+Flask==3.0.0
+requests==2.31.0
+python-dotenv==1.0.0
+newspaper3k==0.2.8
+lxml==4.9.3
+beautifulsoup4==4.12.2
+validators==0.22.0
