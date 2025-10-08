@@ -235,11 +235,35 @@ class Config:
     
     
     # ========================================================================
+    # CONFIGURAÇÕES DE BUSCA
+    # ========================================================================
+    
+    # Modo de busca: 'mock', 'serpapi', 'googlesearch', 'direct', 'hybrid'
+    SEARCH_MODE = os.getenv('SEARCH_MODE', 'mock')
+    
+    # Habilitar fallback automático (se um método falhar, tenta próximo)
+    ENABLE_SEARCH_FALLBACK = True
+    
+    # Ordem de prioridade dos métodos (usado no modo hybrid)
+    SEARCH_METHODS_PRIORITY = ['serpapi', 'googlesearch', 'direct']
+    
+    # Número máximo de resultados por busca
+    MAX_SEARCH_RESULTS = 3
+    
+    # Delay entre buscas (para não sobrecarregar)
+    SEARCH_DELAY = 1.5  # segundos
+    
+    
+    # ========================================================================
     # CHAVES DE API (quando necessário)
     # ========================================================================
     
     # SerpAPI (para busca no Google)
     SERPAPI_KEY = os.getenv('SERPAPI_KEY', None)
+    
+    # Contador de requisições SerpAPI (para monitorar uso)
+    SERPAPI_REQUESTS_COUNT = 0
+    SERPAPI_REQUESTS_LIMIT = 100  # Limite do plano gratuito
     
     # Outras APIs podem ser adicionadas aqui
     # OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', None)

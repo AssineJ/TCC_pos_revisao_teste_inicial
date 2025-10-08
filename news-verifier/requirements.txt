@@ -7,3 +7,4 @@ beautifulsoup4==4.12.2
 validators==0.22.0
 spacy==3.7.2
 nltk==3.8.1
+https://github.com/explosion/spacy-models/releases/download/pt_core_news_lg-3.7.0/pt_core_news_lg-3.7.0.tar.gz
