@@ -5,3 +5,5 @@ newspaper3k==0.2.8
 lxml==4.9.3
 beautifulsoup4==4.12.2
 validators==0.22.0
+spacy==3.7.2
+nltk==3.8.1

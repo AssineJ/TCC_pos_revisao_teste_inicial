@@ -21,7 +21,7 @@ print()
 print("=== Teste 3: Verificar Notícia (URL) ===")
 dados = {
     "tipo": "url",
-    "conteudo": "https://g1.globo.com/economia/noticia/exemplo.html"
+    "conteudo": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/08/secretaria-de-seguranca-publica-do-rj-alerta-para-golpe-com-uso-de-voz.ghtml"
 }
 response = requests.post('http://127.0.0.1:5000/api/verificar', json=dados)
 print(json.dumps(response.json(), indent=2, ensure_ascii=False))
