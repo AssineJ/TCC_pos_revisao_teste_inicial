@@ -50,6 +50,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+cache_searches/
 
 # Translations
 *.mo
@@ -178,7 +179,5 @@ node_modules/
 frontend/node_modules/
 
 #Cache files
-*.log
-/cache_searches
 cache_searches/
-
+cache_searches/ 
