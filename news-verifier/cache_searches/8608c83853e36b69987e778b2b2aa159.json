@@ -1,0 +1,22 @@
+{
+  "query": "Ministério da Fazenda Brasil reforma reduzir presidente luiz",
+  "site": "folha.uol.com.br",
+  "timestamp": 1760013888.059402,
+  "resultados": [
+    {
+      "title": "Notícia 1 sobre Ministério da Fazenda Brasil r - folha.uol.com.br",
+      "url": "https://folha.uol.com.br/noticia-simulada-1",
+      "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil reforma reduzir presidente luiz. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    },
+    {
+      "title": "Notícia 2 sobre Ministério da Fazenda Brasil r - folha.uol.com.br",
+      "url": "https://folha.uol.com.br/noticia-simulada-2",
+      "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil reforma reduzir presidente luiz. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    },
+    {
+      "title": "Notícia 3 sobre Ministério da Fazenda Brasil r - folha.uol.com.br",
+      "url": "https://folha.uol.com.br/noticia-simulada-3",
+      "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil reforma reduzir presidente luiz. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    }
+  ]
+}

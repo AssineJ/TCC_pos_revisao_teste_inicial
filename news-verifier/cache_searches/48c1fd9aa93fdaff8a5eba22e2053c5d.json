@@ -1,0 +1,12 @@
+{
+  "query": "presidente anunciar redução imposto alimento",
+  "site": "g1.globo.com",
+  "timestamp": 1760013959.209618,
+  "resultados": [
+    {
+      "title": "Notícia 1 sobre presidente anunciar redução im - g1.globo.com",
+      "url": "https://g1.globo.com/noticia-simulada-1",
+      "snippet": "Este é um resultado simulado para testes. Query: presidente anunciar redução imposto alimento. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    }
+  ]
+}

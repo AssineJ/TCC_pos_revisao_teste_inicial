@@ -1,0 +1,17 @@
+{
+  "query": "presidente anunciar redução imposto alimento",
+  "site": "folha.uol.com.br",
+  "timestamp": 1760013960.71131,
+  "resultados": [
+    {
+      "title": "Notícia 1 sobre presidente anunciar redução im - folha.uol.com.br",
+      "url": "https://folha.uol.com.br/noticia-simulada-1",
+      "snippet": "Este é um resultado simulado para testes. Query: presidente anunciar redução imposto alimento. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    },
+    {
+      "title": "Notícia 2 sobre presidente anunciar redução im - folha.uol.com.br",
+      "url": "https://folha.uol.com.br/noticia-simulada-2",
+      "snippet": "Este é um resultado simulado para testes. Query: presidente anunciar redução imposto alimento. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    }
+  ]
+}

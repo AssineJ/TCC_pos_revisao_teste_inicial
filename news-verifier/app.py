@@ -1,5 +1,5 @@
 """
-News Verifier API - Versão 1.5 (Com NLP e Extractor)
+News Verifier API - Versão 1 (Minimal)
 Sistema de Verificação de Veracidade de Notícias
 
 Autor: Projeto Acadêmico
@@ -14,6 +14,7 @@ from flask import Flask, request, jsonify
 from config import Config
 from modules.extractor import extrair_conteudo
 from modules.nlp_processor import processar_texto
+from modules.searcher import buscar_noticias
 import sys
 
 # ============================================================================
@@ -49,8 +50,6 @@ def verificar_noticia():
     {
         "veracidade": 75,
         "justificativa": "...",
-        "titulo_analisado": "...",
-        "analise_nlp": {...},
         "fontes_consultadas": [...],
         "metadata": {...}
     }
@@ -67,14 +66,14 @@ def verificar_noticia():
         # Validação básica: verificar se JSON foi enviado
         if not dados:
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['INVALID_JSON'],
+                "erro": "Nenhum dado JSON foi enviado",
                 "codigo": "INVALID_JSON"
-            }), 400
+            }), 400  # 400 = Bad Request
         
         # Validação: verificar se campos obrigatórios existem
         if 'tipo' not in dados or 'conteudo' not in dados:
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['MISSING_FIELDS'],
+                "erro": "Campos obrigatórios: 'tipo' e 'conteudo'",
                 "codigo": "MISSING_FIELDS"
             }), 400
         
@@ -85,14 +84,14 @@ def verificar_noticia():
         # Validação: tipo deve ser 'url' ou 'texto'
         if tipo not in ['url', 'texto']:
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['INVALID_TYPE'],
+                "erro": "Tipo deve ser 'url' ou 'texto'",
                 "codigo": "INVALID_TYPE"
             }), 400
         
         # Validação: conteúdo não pode estar vazio
         if not conteudo or not conteudo.strip():
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['EMPTY_CONTENT'],
+                "erro": "Conteúdo não pode estar vazio",
                 "codigo": "EMPTY_CONTENT"
             }), 400
         
@@ -126,7 +125,7 @@ def verificar_noticia():
             
             if not resultado_extracao['sucesso']:
                 return jsonify({
-                    "erro": Config.ERROR_MESSAGES['NO_CONTENT_EXTRACTED'],
+                    "erro": "Não foi possível extrair conteúdo da URL",
                     "detalhes": resultado_extracao['erro'],
                     "codigo": "EXTRACTION_FAILED"
                 }), 422
@@ -137,54 +136,51 @@ def verificar_noticia():
         
         else:  # tipo == 'texto'
             texto_para_analise = conteudo
-            titulo_noticia = texto_para_analise[:100] + "..."
+            titulo_noticia = texto_para_analise[:100] + "..."  # Primeiros 100 chars como "título"
         
         
         # ====================================================================
         # ETAPA 3: PROCESSAR COM NLP (IA!)
         # ====================================================================
         
-        try:
-            print(f"🤖 Processando texto com IA...")
-            print(f"   Tamanho do texto: {len(texto_para_analise)} caracteres")
-            
-            resultado_nlp = processar_texto(texto_para_analise)
-            
-            print(f"✅ NLP concluído:")
-            print(f"   - {len(resultado_nlp['entidades'])} entidades encontradas")
-            print(f"   - {len(resultado_nlp['palavras_chave'])} palavras-chave extraídas")
-            print(f"   - Query de busca: {resultado_nlp['query_busca']}")
-            
-        except Exception as e:
-            print(f"❌ ERRO no processamento NLP: {str(e)}")
-            return jsonify({
-                "erro": "Erro no processamento NLP",
-                "detalhes": str(e),
-                "codigo": "NLP_ERROR"
-            }), 500
+        print(f"🤖 Processando texto com IA...")
+        resultado_nlp = processar_texto(texto_para_analise)
+        
+        print(f"✅ NLP concluído:")
+        print(f"   - {len(resultado_nlp['entidades'])} entidades encontradas")
+        print(f"   - {len(resultado_nlp['palavras_chave'])} palavras-chave extraídas")
+        print(f"   - Query de busca: {resultado_nlp['query_busca']}")
         
         
         # ====================================================================
-        # ETAPA 4-7: BUSCA E ANÁLISE (SIMULADO POR ENQUANTO)
+        # ETAPA 4: BUSCAR NAS FONTES CONFIÁVEIS
+        # ====================================================================
+        
+        print(f"🔍 Buscando nas fontes confiáveis...")
+        resultado_busca = buscar_noticias(resultado_nlp['query_busca'])
+        
+        print(f"✅ Busca concluída:")
+        print(f"   - Total de resultados: {resultado_busca['metadata']['total_resultados']}")
+        print(f"   - Fontes com sucesso: {resultado_busca['metadata']['fontes_com_sucesso']}/{resultado_busca['metadata']['total_fontes']}")
+        
+        
+        # ====================================================================
+        # ETAPA 5-7: SCRAPING, ANÁLISE E SCORING (SIMULADO POR ENQUANTO)
         # ====================================================================
         
         # Aqui futuramente chamaremos os módulos:
+        # - extractor.py (extrair conteúdo de URL)
+        # - nlp_processor.py (processar com IA)
         # - searcher.py (buscar nas fontes)
         # - semantic_analyzer.py (análise semântica)
         # - scorer.py (calcular veracidade)
         
-        # Por enquanto, retornamos dados simulados com informações REAIS do NLP
+        # Por enquanto, retornamos dados simulados (dummy)
         resposta = {
             "veracidade": 65,
             "justificativa": f"Análise simulada. {Config.JUSTIFICATION_TEMPLATES['medium_veracity']}",
             "titulo_analisado": titulo_noticia,
             "tamanho_texto_analisado": len(texto_para_analise),
-            "analise_nlp": {
-                "entidades_encontradas": resultado_nlp['entidades'][:5],
-                "palavras_chave": resultado_nlp['palavras_chave'][:8],
-                "query_busca": resultado_nlp['query_busca'],
-                "estatisticas": resultado_nlp['estatisticas']
-            },
             "fontes_consultadas": [
                 {
                     "nome": Config.TRUSTED_SOURCES[0]["nome"],
@@ -205,10 +201,13 @@ def verificar_noticia():
                 "tipo_entrada": tipo,
                 "url_original": url_original,
                 "tamanho_conteudo": len(texto_para_analise),
-                "versao_sistema": "1.5-with-nlp",
-                "total_fontes_analisadas": 2,
+                "versao_sistema": "1.0-with-search",
+                "total_fontes_consultadas": 2,
                 "fontes_disponiveis": len(Config.TRUSTED_SOURCES),
-                "processamento_nlp_completo": True
+                "processamento_nlp_completo": True,
+                "busca_realizada": True,
+                "total_resultados_busca": resultado_busca['metadata']['total_resultados'],
+                "modo_busca": resultado_busca['metadata']['modo_busca']
             }
         }
         
@@ -221,15 +220,12 @@ def verificar_noticia():
         # TRATAMENTO DE ERROS INESPERADOS
         # ====================================================================
         
-        print(f"❌ ERRO INESPERADO: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
+        # Capturar qualquer erro não tratado
         return jsonify({
-            "erro": Config.ERROR_MESSAGES['INTERNAL_ERROR'],
+            "erro": "Erro interno do servidor",
             "detalhes": str(e),
             "codigo": "INTERNAL_ERROR"
-        }), 500
+        }), 500  # 500 = Internal Server Error
 
 
 # ============================================================================
@@ -246,14 +242,13 @@ def health_check():
     Retorna:
     {
         "status": "online",
-        "versao": "1.5"
+        "versao": "1.0"
     }
     """
     return jsonify({
         "status": "online",
-        "versao": "1.5-with-nlp",
-        "mensagem": "News Verifier API está funcionando!",
-        "modulos_ativos": ["extractor", "nlp_processor"]
+        "versao": "1.0-minimal",
+        "mensagem": "News Verifier API está funcionando!"
     }), 200
 
 
@@ -268,15 +263,8 @@ def index():
     """
     return jsonify({
         "nome": "News Verifier API",
-        "versao": "1.5-with-nlp",
-        "descricao": "Sistema de Verificação de Veracidade de Notícias com IA",
-        "modulos": {
-            "extractor": "Extração de conteúdo de URLs",
-            "nlp_processor": "Processamento com IA (spaCy)",
-            "searcher": "Em desenvolvimento",
-            "semantic_analyzer": "Em desenvolvimento",
-            "scorer": "Em desenvolvimento"
-        },
+        "versao": "1.0-minimal",
+        "descricao": "Sistema de Verificação de Veracidade de Notícias",
         "endpoints": {
             "POST /api/verificar": "Verificar veracidade de notícia",
             "GET /api/health": "Verificar status da API",
@@ -293,14 +281,14 @@ def index():
 if __name__ == '__main__':
     """
     Bloco de inicialização - só executa quando rodamos 'python app.py'
+    Não executa quando importamos o app em outro arquivo
     """
     
     print("=" * 70)
     print("🚀 Iniciando News Verifier API...")
     print("=" * 70)
-    print(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
-    print(f"📍 Versão: 1.5-with-nlp")
-    print(f"📍 Módulos ativos: extractor.py, nlp_processor.py")
+    print(f"📍 Servidor rodando em: http://127.0.0.1:5000")
+    print(f"📍 Versão: 1.0-minimal")
     print(f"📍 Pressione Ctrl+C para parar o servidor")
     print("=" * 70)
     print()
