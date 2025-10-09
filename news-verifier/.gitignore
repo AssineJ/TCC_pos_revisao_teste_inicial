@@ -179,4 +179,6 @@ frontend/node_modules/
 
 #Cache files
 *.log
+/cache_searches
 cache_searches/
+
