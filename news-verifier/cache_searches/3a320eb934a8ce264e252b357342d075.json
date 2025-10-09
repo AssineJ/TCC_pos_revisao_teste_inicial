@@ -1,7 +1,7 @@
 {
   "query": "Ministério da Fazenda Brasil reforma reduzir presidente luiz",
   "site": "estadao.com.br",
-  "timestamp": 1760013892.570204,
+  "timestamp": 1760032277.360599,
   "resultados": [
     {
       "title": "Notícia 1 sobre Ministério da Fazenda Brasil r - estadao.com.br",
@@ -11,6 +11,11 @@
     {
       "title": "Notícia 2 sobre Ministério da Fazenda Brasil r - estadao.com.br",
       "url": "https://estadao.com.br/noticia-simulada-2",
+      "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil reforma reduzir presidente luiz. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    },
+    {
+      "title": "Notícia 3 sobre Ministério da Fazenda Brasil r - estadao.com.br",
+      "url": "https://estadao.com.br/noticia-simulada-3",
       "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil reforma reduzir presidente luiz. Em produção, aqui aparecerá o snippet real da notícia encontrada."
     }
   ]

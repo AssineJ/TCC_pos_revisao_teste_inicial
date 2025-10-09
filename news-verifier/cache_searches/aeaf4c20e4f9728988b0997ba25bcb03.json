@@ -1,0 +1,22 @@
+{
+  "query": "teste debug",
+  "site": "noticias.uol.com.br",
+  "timestamp": 1760032494.391677,
+  "resultados": [
+    {
+      "title": "Notícia 1 sobre teste debug - noticias.uol.com.br",
+      "url": "https://noticias.uol.com.br/noticia-simulada-1",
+      "snippet": "Este é um resultado simulado para testes. Query: teste debug. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    },
+    {
+      "title": "Notícia 2 sobre teste debug - noticias.uol.com.br",
+      "url": "https://noticias.uol.com.br/noticia-simulada-2",
+      "snippet": "Este é um resultado simulado para testes. Query: teste debug. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    },
+    {
+      "title": "Notícia 3 sobre teste debug - noticias.uol.com.br",
+      "url": "https://noticias.uol.com.br/noticia-simulada-3",
+      "snippet": "Este é um resultado simulado para testes. Query: teste debug. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    }
+  ]
+}

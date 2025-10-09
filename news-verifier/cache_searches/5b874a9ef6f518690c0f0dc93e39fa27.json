@@ -1,7 +1,7 @@
 {
   "query": "Ministério da Fazenda Brasil reforma reduzir presidente luiz",
   "site": "g1.globo.com",
-  "timestamp": 1760013886.5564,
+  "timestamp": 1760032271.350419,
   "resultados": [
     {
       "title": "Notícia 1 sobre Ministério da Fazenda Brasil r - g1.globo.com",
@@ -11,11 +11,6 @@
     {
       "title": "Notícia 2 sobre Ministério da Fazenda Brasil r - g1.globo.com",
       "url": "https://g1.globo.com/noticia-simulada-2",
-      "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil reforma reduzir presidente luiz. Em produção, aqui aparecerá o snippet real da notícia encontrada."
-    },
-    {
-      "title": "Notícia 3 sobre Ministério da Fazenda Brasil r - g1.globo.com",
-      "url": "https://g1.globo.com/noticia-simulada-3",
       "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil reforma reduzir presidente luiz. Em produção, aqui aparecerá o snippet real da notícia encontrada."
     }
   ]

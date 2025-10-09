@@ -1,5 +1,5 @@
 """
-News Verifier API - Versão 1 (Minimal)
+News Verifier API - Versão Completa
 Sistema de Verificação de Veracidade de Notícias
 
 Autor: Projeto Acadêmico
@@ -21,10 +21,7 @@ import sys
 # CONFIGURAÇÃO DA APLICAÇÃO FLASK
 # ============================================================================
 
-# Criar instância do Flask
 app = Flask(__name__)
-
-# Carregar configurações do config.py
 app.config.from_object(Config)
 
 
@@ -36,23 +33,6 @@ app.config.from_object(Config)
 def verificar_noticia():
     """
     Endpoint principal que recebe uma notícia e retorna análise de veracidade.
-    
-    Método: POST
-    Content-Type: application/json
-    
-    Body esperado:
-    {
-        "tipo": "url" ou "texto",
-        "conteudo": "https://..." ou "texto da notícia..."
-    }
-    
-    Retorna:
-    {
-        "veracidade": 75,
-        "justificativa": "...",
-        "fontes_consultadas": [...],
-        "metadata": {...}
-    }
     """
     
     try:
@@ -60,49 +40,41 @@ def verificar_noticia():
         # ETAPA 1: RECEBER E VALIDAR DADOS
         # ====================================================================
         
-        # Pegar dados JSON do body da requisição
         dados = request.get_json()
         
-        # Validação básica: verificar se JSON foi enviado
         if not dados:
             return jsonify({
-                "erro": "Nenhum dado JSON foi enviado",
+                "erro": Config.ERROR_MESSAGES['INVALID_JSON'],
                 "codigo": "INVALID_JSON"
-            }), 400  # 400 = Bad Request
+            }), 400
         
-        # Validação: verificar se campos obrigatórios existem
         if 'tipo' not in dados or 'conteudo' not in dados:
             return jsonify({
-                "erro": "Campos obrigatórios: 'tipo' e 'conteudo'",
+                "erro": Config.ERROR_MESSAGES['MISSING_FIELDS'],
                 "codigo": "MISSING_FIELDS"
             }), 400
         
-        # Extrair dados
         tipo = dados['tipo']
         conteudo = dados['conteudo']
         
-        # Validação: tipo deve ser 'url' ou 'texto'
         if tipo not in ['url', 'texto']:
             return jsonify({
-                "erro": "Tipo deve ser 'url' ou 'texto'",
+                "erro": Config.ERROR_MESSAGES['INVALID_TYPE'],
                 "codigo": "INVALID_TYPE"
             }), 400
         
-        # Validação: conteúdo não pode estar vazio
         if not conteudo or not conteudo.strip():
             return jsonify({
-                "erro": "Conteúdo não pode estar vazio",
+                "erro": Config.ERROR_MESSAGES['EMPTY_CONTENT'],
                 "codigo": "EMPTY_CONTENT"
             }), 400
         
-        # Validação: conteúdo muito curto
         if len(conteudo.strip()) < Config.MIN_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_SHORT'],
                 "codigo": "CONTENT_TOO_SHORT"
             }), 422
         
-        # Validação: conteúdo muito longo
         if len(conteudo.strip()) > Config.MAX_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_LONG'],
@@ -119,7 +91,6 @@ def verificar_noticia():
         url_original = conteudo if tipo == 'url' else None
         
         if tipo == 'url':
-            # Usar o extractor para pegar conteúdo da URL
             print(f"📥 Extraindo conteúdo de: {conteudo}")
             resultado_extracao = extrair_conteudo(conteudo)
             
@@ -136,7 +107,7 @@ def verificar_noticia():
         
         else:  # tipo == 'texto'
             texto_para_analise = conteudo
-            titulo_noticia = texto_para_analise[:100] + "..."  # Primeiros 100 chars como "título"
+            titulo_noticia = texto_para_analise[:100] + "..."
         
         
         # ====================================================================
@@ -168,41 +139,41 @@ def verificar_noticia():
         # ETAPA 5-7: SCRAPING, ANÁLISE E SCORING (SIMULADO POR ENQUANTO)
         # ====================================================================
         
-        # Aqui futuramente chamaremos os módulos:
-        # - extractor.py (extrair conteúdo de URL)
-        # - nlp_processor.py (processar com IA)
-        # - searcher.py (buscar nas fontes)
-        # - semantic_analyzer.py (análise semântica)
-        # - scorer.py (calcular veracidade)
+        # Preparar fontes consultadas com dados reais da busca
+        fontes_consultadas = []
+        for fonte_nome, fonte_resultados in resultado_busca.items():
+            if fonte_nome == 'metadata':
+                continue
+            
+            if fonte_resultados:
+                primeiro = fonte_resultados[0]
+                fontes_consultadas.append({
+                    "nome": fonte_nome,
+                    "url": primeiro['url'],
+                    "titulo": primeiro['title'],
+                    "snippet": primeiro['snippet'][:100] + "..." if primeiro['snippet'] else "N/A",
+                    "total_resultados": len(fonte_resultados)
+                })
         
-        # Por enquanto, retornamos dados simulados (dummy)
+        # Montar resposta completa
         resposta = {
             "veracidade": 65,
             "justificativa": f"Análise simulada. {Config.JUSTIFICATION_TEMPLATES['medium_veracity']}",
             "titulo_analisado": titulo_noticia,
             "tamanho_texto_analisado": len(texto_para_analise),
-            "fontes_consultadas": [
-                {
-                    "nome": Config.TRUSTED_SOURCES[0]["nome"],
-                    "url": f"{Config.TRUSTED_SOURCES[0]['url_base']}/exemplo",
-                    "titulo": "Exemplo de notícia relacionada",
-                    "similaridade": 0.72,
-                    "status": "confirma"
-                },
-                {
-                    "nome": Config.TRUSTED_SOURCES[1]["nome"],
-                    "url": f"{Config.TRUSTED_SOURCES[1]['url_base']}/exemplo",
-                    "titulo": "Outra notícia relacionada",
-                    "similaridade": 0.58,
-                    "status": "parcial"
-                }
-            ],
+            "analise_nlp": {
+                "entidades_encontradas": resultado_nlp['entidades'][:5],
+                "palavras_chave": resultado_nlp['palavras_chave'][:8],
+                "query_busca": resultado_nlp['query_busca'],
+                "estatisticas": resultado_nlp['estatisticas']
+            },
+            "fontes_consultadas": fontes_consultadas,
             "metadata": {
                 "tipo_entrada": tipo,
                 "url_original": url_original,
                 "tamanho_conteudo": len(texto_para_analise),
                 "versao_sistema": "1.0-with-search",
-                "total_fontes_consultadas": 2,
+                "total_fontes_consultadas": len(fontes_consultadas),
                 "fontes_disponiveis": len(Config.TRUSTED_SOURCES),
                 "processamento_nlp_completo": True,
                 "busca_realizada": True,
@@ -211,66 +182,59 @@ def verificar_noticia():
             }
         }
         
-        # Retornar JSON com código 200 (sucesso)
         return jsonify(resposta), 200
     
     
     except Exception as e:
-        # ====================================================================
-        # TRATAMENTO DE ERROS INESPERADOS
-        # ====================================================================
+        print(f"❌ ERRO: {str(e)}")
+        import traceback
+        traceback.print_exc()
         
-        # Capturar qualquer erro não tratado
         return jsonify({
             "erro": "Erro interno do servidor",
             "detalhes": str(e),
             "codigo": "INTERNAL_ERROR"
-        }), 500  # 500 = Internal Server Error
+        }), 500
 
 
 # ============================================================================
-# ROTA DE SAÚDE - VERIFICAR SE API ESTÁ FUNCIONANDO
+# ROTA DE SAÚDE
 # ============================================================================
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """
-    Endpoint simples para verificar se a API está online.
-    
-    Método: GET
-    
-    Retorna:
-    {
-        "status": "online",
-        "versao": "1.0"
-    }
-    """
+    """Endpoint para verificar se a API está online"""
     return jsonify({
         "status": "online",
-        "versao": "1.0-minimal",
+        "versao": "1.0-with-search",
         "mensagem": "News Verifier API está funcionando!"
     }), 200
 
 
 # ============================================================================
-# ROTA RAIZ - INFORMAÇÕES DA API
+# ROTA RAIZ
 # ============================================================================
 
 @app.route('/', methods=['GET'])
 def index():
-    """
-    Rota raiz - Informações sobre a API
-    """
+    """Rota raiz - Informações sobre a API"""
     return jsonify({
         "nome": "News Verifier API",
-        "versao": "1.0-minimal",
+        "versao": "1.0-with-search",
         "descricao": "Sistema de Verificação de Veracidade de Notícias",
+        "modulos_ativos": [
+            "✅ Extractor (extração de conteúdo)",
+            "✅ NLP Processor (análise com IA)",
+            "✅ Searcher (busca nas fontes)",
+            "⏳ Scraper (próximo)",
+            "⏳ Semantic Analyzer (próximo)",
+            "⏳ Scorer (próximo)"
+        ],
         "endpoints": {
             "POST /api/verificar": "Verificar veracidade de notícia",
             "GET /api/health": "Verificar status da API",
             "GET /": "Informações da API"
-        },
-        "documentacao": "Envie POST para /api/verificar com JSON: {tipo: 'url'|'texto', conteudo: '...'}"
+        }
     }), 200
 
 
@@ -279,21 +243,16 @@ def index():
 # ============================================================================
 
 if __name__ == '__main__':
-    """
-    Bloco de inicialização - só executa quando rodamos 'python app.py'
-    Não executa quando importamos o app em outro arquivo
-    """
-    
     print("=" * 70)
     print("🚀 Iniciando News Verifier API...")
     print("=" * 70)
-    print(f"📍 Servidor rodando em: http://127.0.0.1:5000")
-    print(f"📍 Versão: 1.0-minimal")
+    print(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
+    print(f"📍 Versão: 1.0-with-search")
+    print(f"📍 Modo de busca: {Config.SEARCH_MODE}")
     print(f"📍 Pressione Ctrl+C para parar o servidor")
     print("=" * 70)
     print()
     
-    # Iniciar servidor Flask
     app.run(
         host=Config.HOST,
         port=Config.PORT,

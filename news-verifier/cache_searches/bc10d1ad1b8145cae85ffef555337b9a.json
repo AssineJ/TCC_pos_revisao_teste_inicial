@@ -1,7 +1,7 @@
 {
   "query": "Ministério da Fazenda Brasil presidente luiz inácio lula",
   "site": "bbc.com/portuguese",
-  "timestamp": 1760014044.806948,
+  "timestamp": 1760032514.575385,
   "resultados": [
     {
       "title": "Notícia 1 sobre Ministério da Fazenda Brasil p - bbc.com/portuguese",
@@ -11,6 +11,11 @@
     {
       "title": "Notícia 2 sobre Ministério da Fazenda Brasil p - bbc.com/portuguese",
       "url": "https://bbc.com/portuguese/noticia-simulada-2",
+      "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil presidente luiz inácio lula. Em produção, aqui aparecerá o snippet real da notícia encontrada."
+    },
+    {
+      "title": "Notícia 3 sobre Ministério da Fazenda Brasil p - bbc.com/portuguese",
+      "url": "https://bbc.com/portuguese/noticia-simulada-3",
       "snippet": "Este é um resultado simulado para testes. Query: Ministério da Fazenda Brasil presidente luiz inácio lula. Em produção, aqui aparecerá o snippet real da notícia encontrada."
     }
   ]

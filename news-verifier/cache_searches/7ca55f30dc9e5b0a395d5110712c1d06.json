@@ -1,16 +1,11 @@
 {
   "query": "gravar golpe roubo voz alertar",
   "site": "bbc.com/portuguese",
-  "timestamp": 1760013972.092745,
+  "timestamp": 1760032361.166943,
   "resultados": [
     {
       "title": "Notícia 1 sobre gravar golpe roubo voz alertar - bbc.com/portuguese",
       "url": "https://bbc.com/portuguese/noticia-simulada-1",
-      "snippet": "Este é um resultado simulado para testes. Query: gravar golpe roubo voz alertar. Em produção, aqui aparecerá o snippet real da notícia encontrada."
-    },
-    {
-      "title": "Notícia 2 sobre gravar golpe roubo voz alertar - bbc.com/portuguese",
-      "url": "https://bbc.com/portuguese/noticia-simulada-2",
       "snippet": "Este é um resultado simulado para testes. Query: gravar golpe roubo voz alertar. Em produção, aqui aparecerá o snippet real da notícia encontrada."
     }
   ]

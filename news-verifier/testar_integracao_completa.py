@@ -44,6 +44,24 @@ if response.status_code == 200:
     print(f"📝 TÍTULO:")
     print(f"   {resultado['titulo_analisado'][:80]}...")
     print()
+
+    # ... código anterior ...
+
+if response.status_code == 200:
+    resultado = response.json()
+    
+    # ADICIONAR ESTAS LINHAS PARA DEBUG:
+    print("=" * 70)
+    print("🔍 DEBUG: Estrutura da resposta")
+    print("=" * 70)
+    print(json.dumps(resultado, indent=2, ensure_ascii=False))
+    print()
+    print("=" * 70)
+    print("Chaves presentes:", list(resultado.keys()))
+    print("=" * 70)
+    print()
+    
+    # Resto do código...
     
     print("🤖 ANÁLISE NLP (IA):")
     nlp = resultado['analise_nlp']
@@ -85,3 +103,4 @@ else:
     print(f"❌ Erro: {response.json()}")
 print()
 input("Pressione ENTER para fechar...")
+
