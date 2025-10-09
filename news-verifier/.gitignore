@@ -176,3 +176,7 @@ cython_debug/
 # Node.js
 node_modules/
 frontend/node_modules/
+
+#Cache files
+*.log
+cache_searches/
