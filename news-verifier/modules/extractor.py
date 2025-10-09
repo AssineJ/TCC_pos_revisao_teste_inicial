@@ -413,7 +413,7 @@ if __name__ == "__main__":
     
     # URLs de teste (notícias reais)
     urls_teste = [
-        "https://g1.globo.com/politica/noticia/2024/01/15/governo-anuncia-novas-medidas-economicas.ghtml",
+        "https://g1.globo.com/economia/censo/noticia/2025/10/09/mais-de-um-terco-dos-trabalhadores-do-pais-recebe-ate-um-salario-minimo-diz-ibge.ghtml",
         "https://www.bbc.com/portuguese/articles/c3g3g3g3g3g",  # URL inválida para testar erro
         "https://exemplo-invalido.com"  # URL inválida
     ]
