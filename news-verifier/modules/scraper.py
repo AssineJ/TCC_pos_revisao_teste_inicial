@@ -149,24 +149,14 @@ class NewsScraper:
         
         Args:
             resultados_busca (dict): Resultado do searcher.buscar_em_todas_fontes()
-            {
-                'G1': [{'title': ..., 'url': ..., 'snippet': ...}],
-                'Folha': [...],
-                'metadata': {...}
-            }
             
         Returns:
-            dict: {
-                'G1': [{'url': ..., 'titulo': ..., 'texto': ..., 'sucesso': ...}],
-                'Folha': [...],
-                'metadata': {
-                    'total_scraped': int,
-                    'total_sucesso': int,
-                    'taxa_sucesso': float
-                }
-            }
+            dict: Conteúdos extraídos ou dados da busca (título+snippet)
         """
         print(f"\n📥 Iniciando scraping de notícias encontradas...")
+        
+        # Fontes problemáticas que devem usar apenas título+snippet
+        fontes_problematicas = Config.SOURCES_WITH_PAYWALL
         
         resultados_scraping = {}
         total_urls = 0
@@ -181,20 +171,25 @@ class NewsScraper:
                 resultados_scraping[fonte_nome] = []
                 continue
             
-            print(f"\n  📰 {fonte_nome}: {len(fonte_resultados)} URL(s) para extrair")
+            print(f"\n  📰 {fonte_nome}: {len(fonte_resultados)} URL(s)")
             
-            # Extrair conteúdo de cada URL desta fonte
-            urls = [item['url'] for item in fonte_resultados]
-            conteudos = self.scrape_urls(urls)
+            # Verificar se é fonte problemática
+            if fonte_nome in fontes_problematicas:
+                print(f"    ⚠️  Fonte com paywall detectada - usando título+snippet")
+                conteudos = self._usar_titulo_snippet(fonte_resultados)
+                sucessos = len([c for c in conteudos if c['sucesso']])
+            else:
+                # Extrair conteúdo normalmente
+                urls = [item['url'] for item in fonte_resultados]
+                conteudos = self.scrape_urls(urls)
+                sucessos = sum(1 for c in conteudos if c['sucesso'])
             
             resultados_scraping[fonte_nome] = conteudos
             
-            # Contar sucessos
-            sucessos = sum(1 for c in conteudos if c['sucesso'])
-            total_urls += len(urls)
+            total_urls += len(fonte_resultados)
             total_sucesso += sucessos
             
-            print(f"    ✅ {sucessos}/{len(urls)} extrações bem-sucedidas")
+            print(f"    ✅ {sucessos}/{len(fonte_resultados)} processados")
         
         # Calcular taxa de sucesso
         taxa_sucesso = (total_sucesso / total_urls * 100) if total_urls > 0 else 0
@@ -210,6 +205,55 @@ class NewsScraper:
                 'taxa_sucesso': round(taxa_sucesso, 2)
             }
         }
+    
+    
+    def _usar_titulo_snippet(self, resultados_busca):
+        """
+        Usa título + snippet como "conteúdo" sem fazer scraping.
+        Para fontes com paywall que bloqueiam acesso.
+        
+        Args:
+            resultados_busca (list): Lista de resultados da busca
+            
+        Returns:
+            list: Lista com "conteúdo" montado a partir de título+snippet
+        """
+        conteudos = []
+        
+        for resultado in resultados_busca:
+            titulo = resultado.get('title', '')
+            snippet = resultado.get('snippet', '')
+            url = resultado.get('url', '')
+            
+            # Montar "texto" a partir de título + snippet
+            texto_completo = f"{titulo}. {snippet}"
+            
+            # Se o texto for muito curto, marcar como falha
+            if len(texto_completo.strip()) < 30:
+                conteudos.append({
+                    'url': url,
+                    'titulo': titulo,
+                    'texto': '',
+                    'data_publicacao': None,
+                    'autor': None,
+                    'metodo_extracao': 'titulo_snippet',
+                    'sucesso': False,
+                    'erro': 'Título+snippet muito curto'
+                })
+                continue
+            
+            conteudos.append({
+                'url': url,
+                'titulo': titulo,
+                'texto': texto_completo,
+                'data_publicacao': None,
+                'autor': None,
+                'metodo_extracao': 'titulo_snippet',
+                'sucesso': True,
+                'erro': None
+            })
+        
+        return conteudos
     
     
     def scrape_urls(self, urls):

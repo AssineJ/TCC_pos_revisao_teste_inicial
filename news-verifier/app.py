@@ -1,3 +1,12 @@
+"""
+News Verifier API - Versão Completa com Análise Semântica
+
+Sistema de Verificação de Veracidade de Notícias
+
+Autor: Projeto Acadêmico
+Data: 2025
+"""
+
 from flask import Flask, request, jsonify
 from config import Config
 from modules.extractor import extrair_conteudo
@@ -8,6 +17,8 @@ from modules.scraper import scrape_noticias
 from modules.semantic_analyzer import analisar_semantica
 from modules.scorer import calcular_veracidade
 import sys
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 # Criar instância do Flask
 app = Flask(__name__)
@@ -157,19 +168,43 @@ def verificar_noticia():
         
         # Preparar fontes consultadas
         fontes_consultadas = []
+        
+        # Primeiro, coletar TODAS as URLs originais do resultado da busca
+        # para garantir que temos as URLs completas
+        urls_originais_busca = {}
+        for fonte_nome, fonte_resultados in resultado_busca_filtrado.items():
+            if fonte_nome == 'metadata':
+                continue
+            for res in fonte_resultados:
+                url = res.get('url', '')
+                # Usar título como chave para mapear
+                titulo_chave = res.get('title', '')[:50]
+                urls_originais_busca[titulo_chave] = url
+        
         for fonte_nome, fonte_analises in resultado_analise.items():
             if fonte_nome == 'metadata':
                 continue
             
             for analise in fonte_analises:
                 if analise.get('sucesso'):
-                    # GARANTIR que URL está completa (não truncada)
-                    url_completa = analise.get('url', '')
+                    # Tentar recuperar URL original da busca
+                    titulo = analise.get('titulo', '')
+                    titulo_chave = titulo[:50]
+                    
+                    # Usar URL da análise, mas verificar se não está truncada
+                    url_analise = analise.get('url', '')
+                    
+                    # Se URL parece truncada (< 80 chars), tentar recuperar original
+                    if len(url_analise) < 80 and titulo_chave in urls_originais_busca:
+                        url_final = urls_originais_busca[titulo_chave]
+                        print(f"[RECUPERADO] URL completa de {fonte_nome}: {len(url_final)} chars")
+                    else:
+                        url_final = url_analise
                     
                     fontes_consultadas.append({
                         "nome": fonte_nome,
-                        "url": url_completa,  # URL COMPLETA
-                        "titulo": analise.get('titulo', ''),
+                        "url": url_final,  # URL GARANTIDAMENTE COMPLETA
+                        "titulo": titulo,
                         "similaridade": analise.get('similaridade', 0),
                         "status": analise.get('status', ''),
                         "motivo": analise.get('motivo', '')
@@ -279,8 +314,18 @@ if __name__ == '__main__':
     print("🚀 Iniciando News Verifier API...")
     print("=" * 70)
     print(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
-    print(f"📍 Versão: 1.0-complete")
+    print(f"📍 Versão: 1.0-final (COMPLETA)")
     print(f"📍 Pressione Ctrl+C para parar o servidor")
+    print("=" * 70)
+    print()
+    print("✅ Módulos carregados:")
+    print("   1. ✅ Extractor (URLs)")
+    print("   2. ✅ NLP Processor (spaCy)")
+    print("   3. ✅ Searcher (Busca Híbrida)")
+    print("   4. ✅ Filters (Anti-paywall/404)")
+    print("   5. ✅ Scraper (Conteúdo)")
+    print("   6. ✅ Semantic Analyzer (IA)")
+    print("   7. ✅ Scorer (Veracidade)")
     print("=" * 70)
     print()
     

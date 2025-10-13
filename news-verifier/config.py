@@ -104,6 +104,9 @@ class Config:
     # Lista apenas dos domínios (útil para validações)
     TRUSTED_DOMAINS = [fonte["dominio"] for fonte in TRUSTED_SOURCES]
     
+    # Fontes com paywall/bloqueio que devem usar apenas título+snippet
+    SOURCES_WITH_PAYWALL = ['Folha de S.Paulo', 'UOL Notícias', 'Estadão']
+    
     # Número máximo de resultados por fonte
     MAX_RESULTS_PER_SOURCE = 2
     

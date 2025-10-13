@@ -390,6 +390,10 @@ class SearchEngine:
             # GARANTIR que URL está completa
             url = item.get('link', '')
             
+            # DEBUG: Log da URL recebida
+            if url:
+                print(f"      [DEBUG] URL recebida do SerpAPI: {len(url)} chars")
+            
             # Validação: URL deve ser completa
             if not url or len(url) < 20:
                 continue
@@ -397,6 +401,11 @@ class SearchEngine:
             # Garantir que começa com http
             if not url.startswith('http'):
                 url = 'https://' + url
+            
+            # VERIFICAÇÃO FINAL: URL não deve ter '...'
+            if '...' in url:
+                print(f"      [ALERTA] URL truncada detectada: {url}")
+                continue
             
             resultados.append({
                 'title': item.get('title', ''),
