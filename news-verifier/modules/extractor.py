@@ -1,7 +1,21 @@
-import os
-import sys
+"""
+extractor.py - Módulo de Extração de Conteúdo
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+Responsabilidade:
+    Extrair conteúdo textual de URLs de notícias, incluindo:
+    - Título
+    - Texto completo
+    - Data de publicação
+    - Autor
+    - URL original
+
+Usa duas abordagens:
+    1. newspaper3k (principal) - especializado em notícias
+    2. BeautifulSoup (fallback) - parsing HTML genérico
+
+Autor: Projeto Acadêmico
+Data: 2025
+"""
 
 import requests
 from newspaper import Article
@@ -413,7 +427,7 @@ if __name__ == "__main__":
     
     # URLs de teste (notícias reais)
     urls_teste = [
-        "https://g1.globo.com/economia/censo/noticia/2025/10/09/mais-de-um-terco-dos-trabalhadores-do-pais-recebe-ate-um-salario-minimo-diz-ibge.ghtml",
+        "https://g1.globo.com/politica/noticia/2024/01/15/governo-anuncia-novas-medidas-economicas.ghtml",
         "https://www.bbc.com/portuguese/articles/c3g3g3g3g3g",  # URL inválida para testar erro
         "https://exemplo-invalido.com"  # URL inválida
     ]

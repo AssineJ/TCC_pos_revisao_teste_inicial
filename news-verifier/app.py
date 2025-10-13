@@ -1,33 +1,20 @@
-"""
-News Verifier API - Versão Completa
-Sistema de Verificação de Veracidade de Notícias
-
-Autor: Projeto Acadêmico
-Data: 2025
-"""
-
-# ============================================================================
-# IMPORTAÇÕES
-# ============================================================================
-
 from flask import Flask, request, jsonify
 from config import Config
 from modules.extractor import extrair_conteudo
 from modules.nlp_processor import processar_texto
 from modules.searcher import buscar_noticias
+from modules.filters import filtrar_busca, filtrar_scraping
+from modules.scraper import scrape_noticias
+from modules.semantic_analyzer import analisar_semantica
+from modules.scorer import calcular_veracidade
 import sys
 
-# ============================================================================
-# CONFIGURAÇÃO DA APLICAÇÃO FLASK
-# ============================================================================
-
+# Criar instância do Flask
 app = Flask(__name__)
+
+# Carregar configurações do config.py
 app.config.from_object(Config)
 
-
-# ============================================================================
-# ROTA PRINCIPAL - VERIFICAR NOTÍCIA
-# ============================================================================
 
 @app.route('/api/verificar', methods=['POST'])
 def verificar_noticia():
@@ -36,21 +23,18 @@ def verificar_noticia():
     """
     
     try:
-        # ====================================================================
-        # ETAPA 1: RECEBER E VALIDAR DADOS
-        # ====================================================================
-        
+        # ETAPA 1: VALIDAR DADOS
         dados = request.get_json()
         
         if not dados:
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['INVALID_JSON'],
+                "erro": "Nenhum dado JSON foi enviado",
                 "codigo": "INVALID_JSON"
             }), 400
         
         if 'tipo' not in dados or 'conteudo' not in dados:
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['MISSING_FIELDS'],
+                "erro": "Campos obrigatórios: 'tipo' e 'conteudo'",
                 "codigo": "MISSING_FIELDS"
             }), 400
         
@@ -59,13 +43,13 @@ def verificar_noticia():
         
         if tipo not in ['url', 'texto']:
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['INVALID_TYPE'],
+                "erro": "Tipo deve ser 'url' ou 'texto'",
                 "codigo": "INVALID_TYPE"
             }), 400
         
         if not conteudo or not conteudo.strip():
             return jsonify({
-                "erro": Config.ERROR_MESSAGES['EMPTY_CONTENT'],
+                "erro": "Conteúdo não pode estar vazio",
                 "codigo": "EMPTY_CONTENT"
             }), 400
         
@@ -82,10 +66,7 @@ def verificar_noticia():
             }), 422
         
         
-        # ====================================================================
         # ETAPA 2: EXTRAIR CONTEÚDO (se for URL)
-        # ====================================================================
-        
         texto_para_analise = ""
         titulo_noticia = ""
         url_original = conteudo if tipo == 'url' else None
@@ -105,15 +86,12 @@ def verificar_noticia():
             titulo_noticia = resultado_extracao['titulo']
             print(f"✅ Conteúdo extraído: {len(texto_para_analise)} caracteres")
         
-        else:  # tipo == 'texto'
+        else:
             texto_para_analise = conteudo
             titulo_noticia = texto_para_analise[:100] + "..."
         
         
-        # ====================================================================
         # ETAPA 3: PROCESSAR COM NLP (IA!)
-        # ====================================================================
-        
         print(f"🤖 Processando texto com IA...")
         resultado_nlp = processar_texto(texto_para_analise)
         
@@ -123,10 +101,7 @@ def verificar_noticia():
         print(f"   - Query de busca: {resultado_nlp['query_busca']}")
         
         
-        # ====================================================================
         # ETAPA 4: BUSCAR NAS FONTES CONFIÁVEIS
-        # ====================================================================
-        
         print(f"🔍 Buscando nas fontes confiáveis...")
         resultado_busca = buscar_noticias(resultado_nlp['query_busca'])
         
@@ -134,50 +109,114 @@ def verificar_noticia():
         print(f"   - Total de resultados: {resultado_busca['metadata']['total_resultados']}")
         print(f"   - Fontes com sucesso: {resultado_busca['metadata']['fontes_com_sucesso']}/{resultado_busca['metadata']['total_fontes']}")
         
+        # APLICAR FILTROS NA BUSCA
+        resultado_busca_filtrado = filtrar_busca(resultado_busca)
         
-        # ====================================================================
-        # ETAPA 5-7: SCRAPING, ANÁLISE E SCORING (SIMULADO POR ENQUANTO)
-        # ====================================================================
+        print(f"✅ Filtros aplicados:")
+        print(f"   - Mantidos: {resultado_busca_filtrado['metadata']['total_resultados']}")
+        print(f"   - Filtrados: {resultado_busca_filtrado['metadata'].get('total_filtrados', 0)}")
         
-        # Preparar fontes consultadas com dados reais da busca
+        
+        # ETAPA 5: EXTRAIR CONTEÚDO DAS URLs ENCONTRADAS
+        print(f"📥 Extraindo conteúdo das notícias encontradas...")
+        resultado_scraping = scrape_noticias(resultado_busca_filtrado)
+        
+        print(f"✅ Scraping concluído:")
+        print(f"   - Total processado: {resultado_scraping['metadata']['total_scraped']}")
+        print(f"   - Sucessos: {resultado_scraping['metadata']['total_sucesso']}")
+        print(f"   - Taxa: {resultado_scraping['metadata']['taxa_sucesso']:.1f}%")
+        
+        # APLICAR FILTROS NO SCRAPING
+        resultado_scraping_filtrado = filtrar_scraping(resultado_scraping, texto_para_analise)
+        
+        print(f"✅ Filtros aplicados:")
+        print(f"   - Mantidos: {resultado_scraping_filtrado['metadata']['total_sucesso']}")
+        print(f"   - Filtrados: {resultado_scraping_filtrado['metadata'].get('total_filtrados', 0)}")
+        
+        
+        # ETAPA 6: ANÁLISE SEMÂNTICA COM IA
+        print(f"🔬 Analisando similaridade semântica com IA...")
+        resultado_analise = analisar_semantica(texto_para_analise, resultado_scraping_filtrado)
+        
+        print(f"✅ Análise semântica concluída:")
+        print(f"   - Confirmam forte: {resultado_analise['metadata']['confirmam_forte']}")
+        print(f"   - Confirmam parcial: {resultado_analise['metadata']['confirmam_parcial']}")
+        print(f"   - Apenas mencionam: {resultado_analise['metadata']['apenas_mencionam']}")
+        
+        
+        # ETAPA 7: CÁLCULO DE VERACIDADE FINAL (SCORER)
+        print(f"🎯 Calculando veracidade final...")
+        resultado_score = calcular_veracidade(resultado_analise, {
+            'tipo_entrada': tipo,
+            'tamanho_conteudo': len(texto_para_analise),
+            'total_fontes_buscadas': resultado_busca['metadata']['total_resultados']
+        })
+        
+        print(f"✅ Score calculado: {resultado_score['veracidade']}%")
+        print(f"   Nível de confiança: {resultado_score['nivel_confianca']}")
+        
+        # Preparar fontes consultadas
         fontes_consultadas = []
-        for fonte_nome, fonte_resultados in resultado_busca.items():
+        for fonte_nome, fonte_analises in resultado_analise.items():
             if fonte_nome == 'metadata':
                 continue
             
-            if fonte_resultados:
-                primeiro = fonte_resultados[0]
-                fontes_consultadas.append({
-                    "nome": fonte_nome,
-                    "url": primeiro['url'],
-                    "titulo": primeiro['title'],
-                    "snippet": primeiro['snippet'][:100] + "..." if primeiro['snippet'] else "N/A",
-                    "total_resultados": len(fonte_resultados)
-                })
+            for analise in fonte_analises:
+                if analise.get('sucesso'):
+                    # GARANTIR que URL está completa (não truncada)
+                    url_completa = analise.get('url', '')
+                    
+                    fontes_consultadas.append({
+                        "nome": fonte_nome,
+                        "url": url_completa,  # URL COMPLETA
+                        "titulo": analise.get('titulo', ''),
+                        "similaridade": analise.get('similaridade', 0),
+                        "status": analise.get('status', ''),
+                        "motivo": analise.get('motivo', '')
+                    })
         
-        # Montar resposta completa
+        fontes_consultadas.sort(key=lambda x: x['similaridade'], reverse=True)
+        
+        # Montar resposta final
+        meta_analise = resultado_analise['metadata']
+        
         resposta = {
-            "veracidade": 65,
-            "justificativa": f"Análise simulada. {Config.JUSTIFICATION_TEMPLATES['medium_veracity']}",
+            "veracidade": resultado_score['veracidade'],
+            "justificativa": resultado_score['justificativa'],
+            "nivel_confianca": resultado_score['nivel_confianca'],
             "titulo_analisado": titulo_noticia,
             "tamanho_texto_analisado": len(texto_para_analise),
+            "calculo_detalhado": resultado_score['detalhes'],
             "analise_nlp": {
                 "entidades_encontradas": resultado_nlp['entidades'][:5],
                 "palavras_chave": resultado_nlp['palavras_chave'][:8],
                 "query_busca": resultado_nlp['query_busca'],
                 "estatisticas": resultado_nlp['estatisticas']
             },
-            "fontes_consultadas": fontes_consultadas,
+            "analise_semantica": {
+                "total_analisados": meta_analise['total_analisados'],
+                "confirmam_forte": meta_analise['confirmam_forte'],
+                "confirmam_parcial": meta_analise['confirmam_parcial'],
+                "apenas_mencionam": meta_analise['apenas_mencionam'],
+                "nao_relacionados": meta_analise['nao_relacionados']
+            },
+            "fontes_consultadas": fontes_consultadas[:10],
             "metadata": {
                 "tipo_entrada": tipo,
                 "url_original": url_original,
                 "tamanho_conteudo": len(texto_para_analise),
-                "versao_sistema": "1.0-with-search",
+                "versao_sistema": "1.0-final",
                 "total_fontes_consultadas": len(fontes_consultadas),
                 "fontes_disponiveis": len(Config.TRUSTED_SOURCES),
                 "processamento_nlp_completo": True,
                 "busca_realizada": True,
+                "filtros_aplicados": True,
+                "scraping_realizado": True,
+                "analise_semantica_realizada": True,
+                "scoring_completo": True,
                 "total_resultados_busca": resultado_busca['metadata']['total_resultados'],
+                "total_scraped": resultado_scraping_filtrado['metadata']['total_scraped'],
+                "total_analisados": meta_analise['total_analisados'],
                 "modo_busca": resultado_busca['metadata']['modo_busca']
             }
         }
@@ -186,10 +225,6 @@ def verificar_noticia():
     
     
     except Exception as e:
-        print(f"❌ ERRO: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
         return jsonify({
             "erro": "Erro interno do servidor",
             "detalhes": str(e),
@@ -197,58 +232,54 @@ def verificar_noticia():
         }), 500
 
 
-# ============================================================================
-# ROTA DE SAÚDE
-# ============================================================================
-
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Endpoint para verificar se a API está online"""
+    """Endpoint para verificar se a API está online."""
     return jsonify({
         "status": "online",
-        "versao": "1.0-with-search",
-        "mensagem": "News Verifier API está funcionando!"
+        "versao": "1.0-final",
+        "mensagem": "News Verifier API está funcionando!",
+        "modulos_ativos": [
+            "extractor",
+            "nlp_processor",
+            "searcher",
+            "filters",
+            "scraper",
+            "semantic_analyzer",
+            "scorer"
+        ]
     }), 200
 
-
-# ============================================================================
-# ROTA RAIZ
-# ============================================================================
 
 @app.route('/', methods=['GET'])
 def index():
     """Rota raiz - Informações sobre a API"""
     return jsonify({
         "nome": "News Verifier API",
-        "versao": "1.0-with-search",
-        "descricao": "Sistema de Verificação de Veracidade de Notícias",
-        "modulos_ativos": [
-            "✅ Extractor (extração de conteúdo)",
-            "✅ NLP Processor (análise com IA)",
-            "✅ Searcher (busca nas fontes)",
-            "⏳ Scraper (próximo)",
-            "⏳ Semantic Analyzer (próximo)",
-            "⏳ Scorer (próximo)"
-        ],
+        "versao": "1.0-complete",
+        "descricao": "Sistema de Verificação de Veracidade de Notícias com IA",
         "endpoints": {
             "POST /api/verificar": "Verificar veracidade de notícia",
             "GET /api/health": "Verificar status da API",
             "GET /": "Informações da API"
-        }
+        },
+        "fontes_confiaveis": [fonte['nome'] for fonte in Config.TRUSTED_SOURCES],
+        "tecnologias": [
+            "Flask",
+            "spaCy (NLP)",
+            "sentence-transformers (IA Semântica)",
+            "newspaper3k",
+            "BeautifulSoup"
+        ]
     }), 200
 
-
-# ============================================================================
-# INICIALIZAÇÃO DO SERVIDOR
-# ============================================================================
 
 if __name__ == '__main__':
     print("=" * 70)
     print("🚀 Iniciando News Verifier API...")
     print("=" * 70)
     print(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
-    print(f"📍 Versão: 1.0-with-search")
-    print(f"📍 Modo de busca: {Config.SEARCH_MODE}")
+    print(f"📍 Versão: 1.0-complete")
     print(f"📍 Pressione Ctrl+C para parar o servidor")
     print("=" * 70)
     print()

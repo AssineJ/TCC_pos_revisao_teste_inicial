@@ -84,11 +84,11 @@ class Config:
             "ativo": True
         },
         {
-            "nome": "BBC Brasil",
-            "dominio": "bbc.com/portuguese",
-            "url_base": "https://www.bbc.com/portuguese",
-            "url_busca": "https://www.bbc.com/portuguese/search?q=",
-            "confiabilidade": 0.98,
+            "nome": "IstoÉ",
+            "dominio": "istoe.com.br",
+            "url_base": "https://istoe.com.br",
+            "url_busca": "https://istoe.com.br/?s=",
+            "confiabilidade": 0.92,
             "ativo": True
         },
         {

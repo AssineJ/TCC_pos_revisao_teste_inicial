@@ -387,9 +387,20 @@ class SearchEngine:
         
         resultados = []
         for item in organic_results[:Config.MAX_SEARCH_RESULTS]:
+            # GARANTIR que URL está completa
+            url = item.get('link', '')
+            
+            # Validação: URL deve ser completa
+            if not url or len(url) < 20:
+                continue
+            
+            # Garantir que começa com http
+            if not url.startswith('http'):
+                url = 'https://' + url
+            
             resultados.append({
                 'title': item.get('title', ''),
-                'url': item.get('link', ''),
+                'url': url,  # URL COMPLETA E VALIDADA
                 'snippet': item.get('snippet', '')
             })
         

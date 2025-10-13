@@ -1,3 +1,12 @@
+"""
+nlp_processor.py - Módulo de Processamento de Linguagem Natural
+
+VERSÃO CORRIGIDA - Aceita título opcional para melhorar query
+
+Autor: Projeto Acadêmico
+Data: 2025
+"""
+
 import spacy
 import nltk
 from nltk.corpus import stopwords
@@ -7,23 +16,13 @@ import re
 from config import Config
 
 
-# ============================================================================
-# CARREGAR MODELOS (LAZY LOADING)
-# ============================================================================
-
 # Variáveis globais para armazenar modelos carregados
 _nlp_model = None
 _stopwords_pt = None
 
 
 def _carregar_spacy():
-    """
-    Carrega o modelo spaCy apenas uma vez (lazy loading).
-    Importante: Carregar modelo é pesado, fazemos apenas 1 vez.
-    
-    Returns:
-        spacy.Language: Modelo carregado
-    """
+    """Carrega o modelo spaCy apenas uma vez (lazy loading)."""
     global _nlp_model
     
     if _nlp_model is None:
@@ -40,27 +39,16 @@ def _carregar_spacy():
 
 
 def _carregar_stopwords():
-    """
-    Carrega stopwords do NLTK + customizadas do config.
-    
-    Returns:
-        set: Conjunto de stopwords
-    """
+    """Carrega stopwords do NLTK + customizadas."""
     global _stopwords_pt
     
     if _stopwords_pt is None:
         print("📚 Carregando stopwords...")
         try:
-            # Stopwords do NLTK
             nltk_stopwords = set(stopwords.words('portuguese'))
-            
-            # Adicionar stopwords customizadas do config
             custom_stopwords = set(Config.CUSTOM_STOPWORDS)
-            
-            # Combinar
             _stopwords_pt = nltk_stopwords.union(custom_stopwords)
             print(f"✅ {len(_stopwords_pt)} stopwords carregadas!")
-        
         except LookupError:
             print("❌ ERRO: Stopwords do NLTK não encontradas!")
             print("Execute: python -c \"import nltk; nltk.download('stopwords')\"")
@@ -69,18 +57,8 @@ def _carregar_stopwords():
     return _stopwords_pt
 
 
-# ============================================================================
-# CLASSE PRINCIPAL - NLP PROCESSOR
-# ============================================================================
-
 class NLPProcessor:
-    """
-    Classe responsável por processar texto usando IA.
-    
-    Atributos:
-        nlp: Modelo spaCy carregado
-        stopwords: Conjunto de stopwords
-    """
+    """Classe responsável por processar texto usando IA."""
     
     def __init__(self):
         """Inicializa processador com modelos de IA"""
@@ -88,70 +66,48 @@ class NLPProcessor:
         self.stopwords = _carregar_stopwords()
     
     
-    def processar(self, texto):
+    def processar(self, texto, titulo=None):
         """
         Processa texto completo e extrai todas as informações.
         
         Args:
             texto (str): Texto da notícia
+            titulo (str, optional): Título da notícia (melhora a query)
             
         Returns:
-            dict: {
-                'entidades': list,           # Entidades nomeadas encontradas
-                'palavras_chave': list,      # Palavras-chave mais relevantes
-                'query_busca': str,          # Query otimizada para busca
-                'texto_limpo': str,          # Texto sem stopwords
-                'estatisticas': dict         # Estatísticas do processamento
-            }
+            dict: Informações extraídas
         """
-        
-        # ====================================================================
-        # ETAPA 1: LIMPAR E NORMALIZAR TEXTO
-        # ====================================================================
-        
+        # Limpar textos
         texto_limpo = self._limpar_texto(texto)
+        titulo_limpo = self._limpar_texto(titulo) if titulo else None
         
-        
-        # ====================================================================
-        # ETAPA 2: PROCESSAR COM SPACY (IA!)
-        # ====================================================================
-        
+        # Processar com spaCy
         print("🤖 Processando texto com IA (spaCy)...")
         doc = self.nlp(texto_limpo)
         
-        
-        # ====================================================================
-        # ETAPA 3: EXTRAIR ENTIDADES NOMEADAS
-        # ====================================================================
-        
+        # Extrair entidades e palavras-chave do texto
         entidades = self._extrair_entidades(doc)
-        
-        
-        # ====================================================================
-        # ETAPA 4: EXTRAIR PALAVRAS-CHAVE
-        # ====================================================================
-        
         palavras_chave = self._extrair_palavras_chave(doc)
         
+        # Se tiver título, processar também
+        if titulo_limpo:
+            doc_titulo = self.nlp(titulo_limpo)
+            entidades_titulo = self._extrair_entidades(doc_titulo)
+            palavras_titulo = self._extrair_palavras_chave(doc_titulo)
+            
+            # Gerar query priorizando título
+            query_busca = self._gerar_query_com_titulo(
+                entidades_titulo, palavras_titulo,
+                entidades, palavras_chave
+            )
+        else:
+            # Gerar query apenas com texto
+            query_busca = self._gerar_query(entidades, palavras_chave)
         
-        # ====================================================================
-        # ETAPA 5: GERAR QUERY DE BUSCA
-        # ====================================================================
-        
-        query_busca = self._gerar_query_busca(entidades, palavras_chave)
-        
-        
-        # ====================================================================
-        # ETAPA 6: REMOVER STOPWORDS DO TEXTO
-        # ====================================================================
-        
+        # Remover stopwords
         texto_sem_stopwords = self._remover_stopwords(texto_limpo)
         
-        
-        # ====================================================================
-        # ETAPA 7: COLETAR ESTATÍSTICAS
-        # ====================================================================
-        
+        # Estatísticas
         estatisticas = {
             'total_tokens': len(doc),
             'total_entidades': len(entidades),
@@ -159,11 +115,6 @@ class NLPProcessor:
             'tamanho_texto_original': len(texto),
             'tamanho_texto_limpo': len(texto_limpo)
         }
-        
-        
-        # ====================================================================
-        # RETORNAR RESULTADO
-        # ====================================================================
         
         return {
             'entidades': entidades,
@@ -175,52 +126,22 @@ class NLPProcessor:
     
     
     def _limpar_texto(self, texto):
-        """
-        Limpa texto removendo caracteres especiais, múltiplos espaços, etc.
+        """Limpa texto removendo caracteres especiais."""
+        if not texto:
+            return ""
         
-        Args:
-            texto (str): Texto original
-            
-        Returns:
-            str: Texto limpo
-        """
-        # Remover URLs
         texto = re.sub(r'http\S+|www\S+', '', texto)
-        
-        # Remover emails
         texto = re.sub(r'\S+@\S+', '', texto)
-        
-        # Remover múltiplos espaços
         texto = re.sub(r'\s+', ' ', texto)
-        
-        # Remover espaços no início e fim
         texto = texto.strip()
-        
         return texto
     
     
     def _extrair_entidades(self, doc):
-        """
-        Extrai entidades nomeadas do texto usando spaCy.
-        
-        Entidades são: pessoas, lugares, organizações, datas, etc.
-        Essas são as informações mais importantes para buscar nas fontes.
-        
-        Args:
-            doc (spacy.tokens.Doc): Documento processado pelo spaCy
-            
-        Returns:
-            list: Lista de dicionários com entidades
-            [
-                {'texto': 'Lula', 'tipo': 'PERSON'},
-                {'texto': 'Brasil', 'tipo': 'LOC'},
-                ...
-            ]
-        """
+        """Extrai entidades nomeadas usando spaCy."""
         entidades = []
         
         for ent in doc.ents:
-            # Filtrar apenas tipos de entidades relevantes
             if ent.label_ in Config.ENTITY_TYPES:
                 entidades.append({
                     'texto': ent.text,
@@ -228,232 +149,152 @@ class NLPProcessor:
                     'importancia': self._calcular_importancia_entidade(ent)
                 })
         
-        # Remover duplicatas (manter a com maior importância)
+        # Remover duplicatas
         entidades_unicas = {}
         for ent in entidades:
             texto_lower = ent['texto'].lower()
             if texto_lower not in entidades_unicas or ent['importancia'] > entidades_unicas[texto_lower]['importancia']:
                 entidades_unicas[texto_lower] = ent
         
-        # Converter de volta para lista e ordenar por importância
         entidades = list(entidades_unicas.values())
         entidades.sort(key=lambda x: x['importancia'], reverse=True)
-        
-        # Limitar ao máximo configurado
         entidades = entidades[:Config.MAX_ENTITIES]
         
         return entidades
     
     
     def _calcular_importancia_entidade(self, ent):
-        """
-        Calcula importância de uma entidade (0-1).
-        Entidades no início do texto têm mais importância.
-        
-        Args:
-            ent (spacy.tokens.Span): Entidade do spaCy
-            
-        Returns:
-            float: Importância entre 0 e 1
-        """
-        # Posição no documento (quanto mais no início, maior a importância)
-        posicao_relativa = ent.start / len(ent.doc)
-        importancia_posicao = 1 - (posicao_relativa * 0.5)  # Máximo 50% de redução
-        
-        # Tamanho da entidade (entidades maiores tendem a ser mais específicas)
+        """Calcula importância de uma entidade."""
+        posicao_relativa = ent.start / len(ent.doc) if len(ent.doc) > 0 else 0
+        importancia_posicao = 1 - (posicao_relativa * 0.5)
         tamanho = len(ent.text.split())
-        importancia_tamanho = min(tamanho / 3, 1.0)  # Max 1.0
-        
-        # Média ponderada
+        importancia_tamanho = min(tamanho / 3, 1.0)
         importancia = (importancia_posicao * 0.7) + (importancia_tamanho * 0.3)
-        
         return round(importancia, 2)
     
     
     def _extrair_palavras_chave(self, doc):
-        """
-        Extrai palavras-chave mais relevantes do texto.
-        
-        Usa estratégia de frequência + importância gramatical:
-        - Substantivos e verbos são mais importantes
-        - Palavras mais frequentes são mais relevantes
-        - Remove stopwords
-        
-        Args:
-            doc (spacy.tokens.Doc): Documento processado
-            
-        Returns:
-            list: Lista de palavras-chave ordenadas por relevância
-        """
-        # Coletar palavras relevantes (substantivos, verbos, adjetivos)
+        """Extrai palavras-chave relevantes."""
         palavras_relevantes = []
         
         for token in doc:
-            # Filtros:
-            # - Não é stopword
-            # - É substantivo, verbo ou adjetivo
-            # - Tem pelo menos 3 caracteres
-            # - É alfabético (não número ou pontuação)
             if (not token.is_stop and 
                 token.pos_ in ['NOUN', 'VERB', 'PROPN', 'ADJ'] and
                 len(token.text) >= 3 and
                 token.is_alpha):
                 
-                # Usar lema (forma base da palavra)
-                # Exemplo: "correr", "correndo", "correu" -> "correr"
                 palavra = token.lemma_.lower()
                 palavras_relevantes.append(palavra)
         
-        # Contar frequências
         contador = Counter(palavras_relevantes)
-        
-        # Pegar as mais frequentes
         palavras_chave = [palavra for palavra, freq in contador.most_common(Config.MAX_KEYWORDS)]
         
         return palavras_chave
     
     
-    def _gerar_query_busca(self, entidades, palavras_chave):
+    def _gerar_query_com_titulo(self, entidades_titulo, palavras_titulo, entidades_texto, palavras_texto):
         """
-        Gera query otimizada para busca nas fontes.
-        
-        Combina entidades + palavras-chave de forma inteligente.
-        
-        Args:
-            entidades (list): Lista de entidades extraídas
-            palavras_chave (list): Lista de palavras-chave
-            
-        Returns:
-            str: Query de busca otimizada
+        Gera query priorizando informações do título.
+        Título tem mais peso por ser mais específico e relevante.
         """
-        # Pegar top 3 entidades mais importantes
-        top_entidades = [ent['texto'] for ent in entidades[:3]]
+        # Priorizar título
+        top_ent_titulo = [e['texto'] for e in entidades_titulo[:2]]
+        top_pal_titulo = palavras_titulo[:3]
         
-        # Pegar top 5 palavras-chave
-        top_palavras = palavras_chave[:5]
+        # Complementar com texto
+        top_ent_texto = [e['texto'] for e in entidades_texto[:1]]
+        top_pal_texto = palavras_texto[:2]
         
-        # Combinar (priorizar entidades)
-        termos_busca = top_entidades + top_palavras
+        # Combinar (título primeiro)
+        termos = top_ent_titulo + top_pal_titulo + top_ent_texto + top_pal_texto
         
         # Remover duplicatas mantendo ordem
+        termos_unicos = []
+        for termo in termos:
+            if termo.lower() not in [t.lower() for t in termos_unicos]:
+                termos_unicos.append(termo)
+        
+        # Limitar a 6 termos
+        query = ' '.join(termos_unicos[:6])
+        return query
+    
+    
+    def _gerar_query(self, entidades, palavras_chave):
+        """Gera query apenas com informações do texto."""
+        top_entidades = [ent['texto'] for ent in entidades[:3]]
+        top_palavras = palavras_chave[:5]
+        
+        termos_busca = top_entidades + top_palavras
+        
+        # Remover duplicatas
         termos_unicos = []
         for termo in termos_busca:
             if termo.lower() not in [t.lower() for t in termos_unicos]:
                 termos_unicos.append(termo)
         
-        # Limitar a 6 termos no máximo (queries muito longas não funcionam bem)
         termos_unicos = termos_unicos[:6]
-        
-        # Juntar com espaços
         query = ' '.join(termos_unicos)
-        
         return query
     
     
     def _remover_stopwords(self, texto):
-        """
-        Remove stopwords do texto mantendo apenas palavras relevantes.
-        
-        Args:
-            texto (str): Texto original
-            
-        Returns:
-            str: Texto sem stopwords
-        """
-        # Tokenizar
+        """Remove stopwords do texto."""
         palavras = word_tokenize(texto.lower(), language='portuguese')
-        
-        # Filtrar stopwords
         palavras_filtradas = [
             palavra for palavra in palavras 
             if palavra.isalpha() and palavra not in self.stopwords and len(palavra) >= 3
         ]
-        
-        # Juntar de volta
         texto_filtrado = ' '.join(palavras_filtradas)
-        
         return texto_filtrado
 
 
-# ============================================================================
-# FUNÇÃO DE CONVENIÊNCIA
-# ============================================================================
-
-def processar_texto(texto):
+def processar_texto(texto, titulo=None):
     """
     Função simplificada para processar texto.
-    Esta é a função que será chamada por outros módulos.
     
     Args:
         texto (str): Texto a processar
+        titulo (str, optional): Título para melhorar query
         
     Returns:
         dict: Resultado do processamento
-        
-    Exemplo:
-        >>> resultado = processar_texto("O presidente anunciou reforma...")
-        >>> print(resultado['entidades'])
-        >>> print(resultado['query_busca'])
     """
     processor = NLPProcessor()
-    return processor.processar(texto)
+    return processor.processar(texto, titulo)
 
-
-# ============================================================================
-# TESTE DO MÓDULO
-# ============================================================================
 
 if __name__ == "__main__":
-    """
-    Testes do módulo nlp_processor.
-    Execute: python modules/nlp_processor.py
-    """
-    
     print("=" * 70)
     print("🧪 TESTANDO MÓDULO NLP PROCESSOR")
     print("=" * 70)
     print()
     
-    # Texto de teste
     texto_teste = """
     O presidente Luiz Inácio Lula da Silva anunciou ontem em Brasília uma 
     importante reforma tributária que reduzirá os impostos sobre alimentos 
-    básicos em todo o Brasil. A medida, que será implementada pelo Ministério 
-    da Fazenda a partir de janeiro de 2025, deve beneficiar milhões de 
-    brasileiros de baixa renda. Segundo especialistas econômicos, a reforma 
-    pode reduzir a inflação e estimular o consumo das famílias.
+    básicos em todo o Brasil.
     """
+    
+    titulo_teste = "Lula anuncia reforma tributária em Brasília"
     
     print("📝 Texto de teste:")
     print(texto_teste.strip())
     print()
+    print(f"📰 Título: {titulo_teste}")
+    print()
+    
+    # Testar COM título
+    print("Teste 1: COM título")
     print("-" * 70)
+    resultado = processar_texto(texto_teste, titulo=titulo_teste)
+    print(f"Query gerada: {resultado['query_busca']}")
     print()
     
-    # Processar
-    resultado = processar_texto(texto_teste)
-    
-    # Mostrar resultados
-    print("✅ RESULTADO DO PROCESSAMENTO:")
+    # Testar SEM título
+    print("Teste 2: SEM título")
+    print("-" * 70)
+    resultado2 = processar_texto(texto_teste)
+    print(f"Query gerada: {resultado2['query_busca']}")
     print()
     
-    print("🏷️  ENTIDADES ENCONTRADAS:")
-    for ent in resultado['entidades']:
-        print(f"  • {ent['texto']} ({ent['tipo']}) - Importância: {ent['importancia']}")
-    print()
-    
-    print("🔑 PALAVRAS-CHAVE:")
-    print(f"  {', '.join(resultado['palavras_chave'])}")
-    print()
-    
-    print("🔍 QUERY DE BUSCA OTIMIZADA:")
-    print(f"  {resultado['query_busca']}")
-    print()
-    
-    print("📊 ESTATÍSTICAS:")
-    for chave, valor in resultado['estatisticas'].items():
-        print(f"  • {chave}: {valor}")
-    print()
-    
-    print("📄 TEXTO LIMPO (primeiros 200 caracteres):")
-    print(f"  {resultado['texto_limpo'][:200]}...")
+    print("✅ Testes concluídos!")
