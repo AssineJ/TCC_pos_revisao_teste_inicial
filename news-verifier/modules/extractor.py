@@ -1,17 +1,14 @@
 """
-extractor.py - Módulo de Extração de Conteúdo
+extractor.py - Módulo de Extração de Conteúdo (Melhorado)
 
 Responsabilidade:
-    Extrair conteúdo textual de URLs de notícias, incluindo:
-    - Título
-    - Texto completo
-    - Data de publicação
-    - Autor
-    - URL original
-
-Usa duas abordagens:
-    1. newspaper3k (principal) - especializado em notícias
-    2. BeautifulSoup (fallback) - parsing HTML genérico
+    Extrair conteúdo textual de URLs de notícias com múltiplas estratégias:
+    - newspaper3k (principal)
+    - trafilatura (fallback 1)
+    - readability (fallback 2)
+    - BeautifulSoup genérico (fallback 3)
+    - AMP pages (fallback especial)
+    - Globo-specific (fallback específico)
 
 Autor: Projeto Acadêmico
 Data: 2025
@@ -25,6 +22,21 @@ from datetime import datetime
 from config import Config
 import time
 import random
+
+# Novas bibliotecas
+try:
+    import trafilatura
+    TRAFILATURA_AVAILABLE = True
+except ImportError:
+    TRAFILATURA_AVAILABLE = False
+    print("⚠️  trafilatura não disponível. Instale com: pip install trafilatura")
+
+try:
+    from readability import Document
+    READABILITY_AVAILABLE = True
+except ImportError:
+    READABILITY_AVAILABLE = False
+    print("⚠️  readability-lxml não disponível. Instale com: pip install readability-lxml")
 
 
 # ============================================================================
@@ -52,66 +64,342 @@ class ContentExtractor:
     def extract(self, url):
         """
         Método principal para extrair conteúdo de uma URL.
+        Agora com 6 estratégias de fallback!
         
         Args:
             url (str): URL da notícia
             
         Returns:
-            dict: Dicionário com conteúdo extraído ou None se falhar
-            {
-                'url': str,
-                'titulo': str,
-                'texto': str,
-                'data_publicacao': str ou None,
-                'autor': str ou None,
-                'metodo_extracao': 'newspaper' ou 'beautifulsoup',
-                'sucesso': bool,
-                'erro': str ou None
-            }
-            
-        Raises:
-            Exception: Captura e retorna erro no dicionário, não lança exceção
+            dict: Dicionário com conteúdo extraído
         """
         
-        # ====================================================================
         # ETAPA 1: VALIDAR URL
-        # ====================================================================
-        
         if not self._validar_url(url):
+            return {
+                'url': url, 'titulo': None, 'texto': None,
+                'data_publicacao': None, 'autor': None,
+                'metodo_extracao': None, 'sucesso': False,
+                'erro': 'URL inválida'
+            }
+    
+    
+    def _validar_url(self, url):
+        
+        # ETAPA 2: Obter HTML
+        html = self._obter_html(url)
+        if not html:
+            return {
+                'url': url, 'titulo': None, 'texto': None,
+                'data_publicacao': None, 'autor': None,
+                'metodo_extracao': None, 'sucesso': False,
+                'erro': 'Não foi possível obter HTML'
+            }
+        
+        # ESTRATÉGIA 1: newspaper3k
+        resultado = self._extrair_com_newspaper(url)
+        if resultado['sucesso'] and len(resultado['texto'].split()) >= 80:
+            return resultado
+        
+        melhor_resultado = resultado  # Guardar para comparar
+        
+        # ESTRATÉGIA 2: trafilatura
+        if TRAFILATURA_AVAILABLE:
+            print(f"⚠️  Newspaper3k insuficiente, tentando trafilatura...")
+            resultado = self._extrair_com_trafilatura(html, url)
+            if resultado['sucesso'] and len(resultado['texto'].split()) > len(melhor_resultado.get('texto', '').split()):
+                melhor_resultado = resultado
+                if len(resultado['texto'].split()) >= 80:
+                    return resultado
+        
+        # ESTRATÉGIA 3: AMP fallback
+        print(f"⚠️  Tentando versão AMP...")
+        resultado = self._extrair_amp(html, url)
+        if resultado['sucesso'] and len(resultado['texto'].split()) > len(melhor_resultado.get('texto', '').split()):
+            melhor_resultado = resultado
+            if len(resultado['texto'].split()) >= 80:
+                return resultado
+        
+        # ESTRATÉGIA 4: readability
+        if READABILITY_AVAILABLE:
+            print(f"⚠️  Tentando readability...")
+            resultado = self._extrair_com_readability(html)
+            if resultado['sucesso'] and len(resultado['texto'].split()) > len(melhor_resultado.get('texto', '').split()):
+                melhor_resultado = resultado
+                if len(resultado['texto'].split()) >= 80:
+                    return resultado
+        
+        # ESTRATÉGIA 5: Globo-specific
+        if 'globo.com' in url.lower():
+            print(f"⚠️  Site Globo detectado, tentando extrator específico...")
+            resultado = self._extrair_globo(html)
+            if resultado['sucesso'] and len(resultado['texto'].split()) > len(melhor_resultado.get('texto', '').split()):
+                melhor_resultado = resultado
+                if len(resultado['texto'].split()) >= 80:
+                    return resultado
+        
+        # ESTRATÉGIA 6: BeautifulSoup genérico (último recurso)
+        print(f"⚠️  Tentando BeautifulSoup genérico...")
+        resultado = self._extrair_com_beautifulsoup(url)
+        if resultado['sucesso'] and len(resultado['texto'].split()) > len(melhor_resultado.get('texto', '').split()):
+            melhor_resultado = resultado
+        
+        return melhor_resultado
+    
+    
+    def _obter_html(self, url):
+        """
+        Obtém HTML da URL com retry.
+        
+        Args:
+            url (str): URL
+            
+        Returns:
+            str: HTML ou vazio
+        """
+        for tentativa in range(self.retry_attempts):
+            try:
+                headers = self.headers.copy()
+                headers['User-Agent'] = random.choice(Config.USER_AGENTS)
+                
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    timeout=self.timeout,
+                    allow_redirects=True
+                )
+                response.raise_for_status()
+                return response.text
+            
+            except Exception as e:
+                if tentativa < self.retry_attempts - 1:
+                    time.sleep(self.retry_delay)
+                    continue
+        
+        return ""
+    
+    
+    def _extrair_com_trafilatura(self, html, url):
+        """
+        Extrai conteúdo usando trafilatura.
+        Biblioteca especializada em extração de texto de artigos.
+        
+        Args:
+            html (str): HTML da página
+            url (str): URL original
+            
+        Returns:
+            dict: Resultado da extração
+        """
+        try:
+            # Extrair metadata
+            metadata = trafilatura.extract_metadata(html, url=url)
+            
+            # Extrair conteúdo
+            content = trafilatura.extract(
+                html,
+                include_comments=False,
+                include_formatting=False,
+                favor_recall=True,
+                url=url
+            )
+            
+            titulo = metadata.title if metadata and hasattr(metadata, 'title') else ""
+            texto = content or ""
+            
+            if not texto or len(texto.split()) < Config.MIN_CONTENT_LENGTH:
+                raise Exception("Texto insuficiente")
+            
+            return {
+                'url': url,
+                'titulo': (titulo or "").strip(),
+                'texto': texto.strip(),
+                'data_publicacao': None,
+                'autor': None,
+                'metodo_extracao': 'trafilatura',
+                'sucesso': True,
+                'erro': None
+            }
+        
+        except Exception as e:
             return {
                 'url': url,
                 'titulo': None,
                 'texto': None,
                 'data_publicacao': None,
                 'autor': None,
-                'metodo_extracao': None,
+                'metodo_extracao': 'trafilatura',
                 'sucesso': False,
-                'erro': 'URL inválida'
+                'erro': f"Trafilatura falhou: {str(e)}"
+            }
+    
+    
+    def _extrair_amp(self, html, url):
+        """
+        Tenta encontrar e extrair versão AMP (Accelerated Mobile Pages).
+        
+        Args:
+            html (str): HTML original
+            url (str): URL original
+            
+        Returns:
+            dict: Resultado da extração
+        """
+        try:
+            soup = BeautifulSoup(html, 'lxml')
+            
+            # Procurar link AMP
+            amp_link = soup.find('link', rel=lambda x: x and 'amphtml' in str(x).lower())
+            
+            if amp_link and amp_link.get('href'):
+                amp_url = amp_link['href']
+                
+                # Garantir URL completa
+                if amp_url.startswith('/'):
+                    from urllib.parse import urlparse
+                    parsed = urlparse(url)
+                    amp_url = f"{parsed.scheme}://{parsed.netloc}{amp_url}"
+                
+                # Buscar HTML da versão AMP
+                amp_html = self._obter_html(amp_url)
+                
+                if amp_html and TRAFILATURA_AVAILABLE:
+                    # Extrair com trafilatura
+                    return self._extrair_com_trafilatura(amp_html, amp_url)
+            
+            raise Exception("Link AMP não encontrado")
+        
+        except Exception as e:
+            return {
+                'url': url,
+                'titulo': None,
+                'texto': None,
+                'data_publicacao': None,
+                'autor': None,
+                'metodo_extracao': 'amp',
+                'sucesso': False,
+                'erro': f"AMP falhou: {str(e)}"
+            }
+    
+    
+    def _extrair_com_readability(self, html):
+        """
+        Extrai conteúdo usando readability-lxml.
+        Biblioteca focada em extrair conteúdo principal.
+        
+        Args:
+            html (str): HTML da página
+            
+        Returns:
+            dict: Resultado da extração
+        """
+        try:
+            doc = Document(html)
+            
+            # Extrair título
+            titulo = (doc.short_title() or "").strip()
+            
+            # Extrair conteúdo principal
+            summary_html = doc.summary(html_partial=True)
+            soup = BeautifulSoup(summary_html, 'lxml')
+            texto = soup.get_text("\n").strip()
+            
+            if not texto or len(texto.split()) < Config.MIN_CONTENT_LENGTH:
+                raise Exception("Texto insuficiente")
+            
+            return {
+                'url': '',
+                'titulo': titulo,
+                'texto': texto,
+                'data_publicacao': None,
+                'autor': None,
+                'metodo_extracao': 'readability',
+                'sucesso': True,
+                'erro': None
             }
         
-        
-        # ====================================================================
-        # ETAPA 2: TENTAR EXTRAIR COM NEWSPAPER3K (Método Principal)
-        # ====================================================================
-        
-        resultado = self._extrair_com_newspaper(url)
-        
-        # Se teve sucesso, retornar
-        if resultado['sucesso']:
-            return resultado
-        
-        
-        # ====================================================================
-        # ETAPA 3: FALLBACK - TENTAR COM BEAUTIFULSOUP
-        # ====================================================================
-        
-        print(f"⚠️  Newspaper3k falhou, tentando BeautifulSoup...")
-        resultado = self._extrair_com_beautifulsoup(url)
-        
-        return resultado
+        except Exception as e:
+            return {
+                'url': '',
+                'titulo': None,
+                'texto': None,
+                'data_publicacao': None,
+                'autor': None,
+                'metodo_extracao': 'readability',
+                'sucesso': False,
+                'erro': f"Readability falhou: {str(e)}"
+            }
     
     
-    def _validar_url(self, url):
+    def _extrair_globo(self, html):
+        """
+        Extrator específico para sites da Globo (G1, etc).
+        
+        Args:
+            html (str): HTML da página
+            
+        Returns:
+            dict: Resultado da extração
+        """
+        try:
+            soup = BeautifulSoup(html, 'lxml')
+            
+            # Buscar título
+            titulo = ""
+            h1 = soup.find('h1')
+            if h1:
+                titulo = h1.get_text(" ", strip=True)
+            
+            # Buscar corpo do artigo
+            body = None
+            
+            # Tentar schema.org articleBody
+            body = soup.find(attrs={"itemprop": "articleBody"})
+            
+            # Tentar tag article
+            if not body:
+                body = soup.find('article')
+            
+            # Tentar divs conhecidas do G1
+            if not body:
+                body = soup.select_one("div[class*='content-text'], div[class*='mc-body']")
+            
+            if not body:
+                raise Exception("Corpo do artigo não encontrado")
+            
+            # Extrair parágrafos
+            paragrafos = []
+            for tag in body.find_all(['p', 'li']):
+                texto = tag.get_text(" ", strip=True)
+                if texto and len(texto) > 20:
+                    paragrafos.append(texto)
+            
+            texto_completo = "\n\n".join(paragrafos).strip()
+            
+            if not texto_completo or len(texto_completo.split()) < Config.MIN_CONTENT_LENGTH:
+                raise Exception("Texto insuficiente")
+            
+            return {
+                'url': '',
+                'titulo': titulo,
+                'texto': texto_completo,
+                'data_publicacao': None,
+                'autor': None,
+                'metodo_extracao': 'globo_specific',
+                'sucesso': True,
+                'erro': None
+            }
+        
+        except Exception as e:
+            return {
+                'url': '',
+                'titulo': None,
+                'texto': None,
+                'data_publicacao': None,
+                'autor': None,
+                'metodo_extracao': 'globo_specific',
+                'sucesso': False,
+                'erro': f"Globo extractor falhou: {str(e)}"
+            }
         """
         Valida se a URL está no formato correto.
         
