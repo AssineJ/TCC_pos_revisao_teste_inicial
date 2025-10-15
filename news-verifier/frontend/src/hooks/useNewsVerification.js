@@ -20,7 +20,7 @@ export default function useNewsVerification() {
     try {
       const response = await verifyNewsRequest(type, payload);
 
-      // Garante que o formato esteja sempre pronto para o componente
+      // Garante formato seguro para renderização
       setResult({
         veracity: Number(response.veracity_score ?? 0) || 0,
         summary: response.summary ?? 'Análise concluída com sucesso.',

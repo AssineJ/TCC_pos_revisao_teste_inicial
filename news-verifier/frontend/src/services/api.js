@@ -20,8 +20,8 @@ function buildPayload(type, payload) {
 }
 
 /**
- * Função principal de verificação de notícia.
- * Faz POST para /api/verificar e retorna o resultado da análise.
+ * Faz POST para /api/verificar e retorna o resultado mapeado
+ * para o formato que o frontend consome.
  */
 export async function verifyNewsRequest(type, payload) {
   const controller = new AbortController();
@@ -40,23 +40,26 @@ export async function verifyNewsRequest(type, payload) {
     }
 
     const data = await response.json();
-
     if (!data) {
       throw new Error('Resposta inválida da API');
     }
 
-    // Garantir conversões numéricas e compatibilidade com o React
-    const veracidade = parseFloat(data.veracidade) || 0;
+    // Normaliza "veracidade" vindo como número, "47%", "47,0", etc.
+    const vRaw = data?.veracidade ?? data?.score ?? data?.veracity ?? 0;
+    const veracidade =
+      typeof vRaw === 'number'
+        ? vRaw
+        : parseFloat(String(vRaw).replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
 
     return {
-      veracity_score: veracidade,
-      summary: data.justificativa ?? data.mensagem ?? 'Análise concluída.',
-      confidence_level: data.nivel_confianca ?? 'Desconhecido',
-      related_sources: data.fontes_consultadas ?? [],
-      main_source: data.titulo_analisado ?? '',
-      metadata: data.metadata ?? {},
-      nlp: data.analise_nlp ?? {},
-      semantic: data.analise_semantica ?? {}
+      veracity_score: veracidade, // sempre número
+      summary: data?.justificativa ?? data?.mensagem ?? 'Análise concluída.',
+      confidence_level: data?.nivel_confianca ?? 'Desconhecido',
+      related_sources: data?.fontes_consultadas ?? [],
+      main_source: data?.titulo_analisado ?? '',
+      metadata: data?.metadata ?? {},
+      nlp: data?.analise_nlp ?? {},
+      semantic: data?.analise_semantica ?? {}
     };
   } catch (error) {
     console.error('Erro ao verificar notícia:', error);
