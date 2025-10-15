@@ -1,13 +1,10 @@
-"""
-News Verifier API - Versão Completa com Análise Semântica
-
-Sistema de Verificação de Veracidade de Notícias
-
-Autor: Projeto Acadêmico
-Data: 2025
-"""
+import builtins
+import logging
+import os
+from logging.handlers import RotatingFileHandler
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from config import Config
 from modules.extractor import extrair_conteudo
 from modules.nlp_processor import processar_texto
@@ -23,6 +20,37 @@ sys.stdout.reconfigure(encoding='utf-8')
 # Criar instância do Flask
 app = Flask(__name__)
 
+
+# Habilitar CORS para permitir que o frontend (porta diferente) consuma a API
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# Configuração de logging (console + arquivo rotativo)
+log_level = getattr(logging, Config.LOG_LEVEL.upper(), logging.DEBUG)
+logging.basicConfig(level=log_level, format=Config.LOG_FORMAT)
+
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+file_handler = RotatingFileHandler(
+    'logs/app.log', maxBytes=1_048_576, backupCount=3, encoding='utf-8'
+)
+file_handler.setLevel(log_level)
+file_handler.setFormatter(logging.Formatter(Config.LOG_FORMAT))
+
+app.logger.setLevel(log_level)
+
+if not any(isinstance(handler, RotatingFileHandler) for handler in app.logger.handlers):
+    app.logger.addHandler(file_handler)
+
+
+def log_info(message: str = ""):
+    """Registra mensagens informativas no logger e mantém saída no console."""
+    if message:
+        app.logger.info(message)
+        builtins.print(message)
+    else:
+        builtins.print()
+
 # Carregar configurações do config.py
 app.config.from_object(Config)
 
@@ -32,143 +60,141 @@ def verificar_noticia():
     """
     Endpoint principal que recebe uma notícia e retorna análise de veracidade.
     """
-    
+
     try:
         # ETAPA 1: VALIDAR DADOS
         dados = request.get_json()
-        
+
         if not dados:
             return jsonify({
                 "erro": "Nenhum dado JSON foi enviado",
                 "codigo": "INVALID_JSON"
             }), 400
-        
+
         if 'tipo' not in dados or 'conteudo' not in dados:
             return jsonify({
                 "erro": "Campos obrigatórios: 'tipo' e 'conteudo'",
                 "codigo": "MISSING_FIELDS"
             }), 400
-        
+
         tipo = dados['tipo']
         conteudo = dados['conteudo']
-        
+
         if tipo not in ['url', 'texto']:
             return jsonify({
                 "erro": "Tipo deve ser 'url' ou 'texto'",
                 "codigo": "INVALID_TYPE"
             }), 400
-        
+
         if not conteudo or not conteudo.strip():
             return jsonify({
                 "erro": "Conteúdo não pode estar vazio",
                 "codigo": "EMPTY_CONTENT"
             }), 400
-        
+
         if len(conteudo.strip()) < Config.MIN_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_SHORT'],
                 "codigo": "CONTENT_TOO_SHORT"
             }), 422
-        
+
         if len(conteudo.strip()) > Config.MAX_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_LONG'],
                 "codigo": "CONTENT_TOO_LONG"
             }), 422
-        
-        
+
+        log_info(
+            f"📨 Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo.strip())}"
+        )
+
         # ETAPA 2: EXTRAIR CONTEÚDO (se for URL)
         texto_para_analise = ""
         titulo_noticia = ""
         url_original = conteudo if tipo == 'url' else None
-        
+
         if tipo == 'url':
-            print(f"📥 Extraindo conteúdo de: {conteudo}")
+            log_info(f"📥 Extraindo conteúdo de: {conteudo}")
             resultado_extracao = extrair_conteudo(conteudo)
-            
+
             if not resultado_extracao['sucesso']:
                 return jsonify({
                     "erro": "Não foi possível extrair conteúdo da URL",
                     "detalhes": resultado_extracao['erro'],
                     "codigo": "EXTRACTION_FAILED"
                 }), 422
-            
+
             texto_para_analise = resultado_extracao['texto']
             titulo_noticia = resultado_extracao['titulo']
-            print(f"✅ Conteúdo extraído: {len(texto_para_analise)} caracteres")
-        
+            log_info(f"✅ Conteúdo extraído: {len(texto_para_analise)} caracteres")
+
         else:
             texto_para_analise = conteudo
             titulo_noticia = texto_para_analise[:100] + "..."
-        
-        
+
         # ETAPA 3: PROCESSAR COM NLP (IA!)
-        print(f"🤖 Processando texto com IA...")
+        log_info(f"🤖 Processando texto com IA...")
         resultado_nlp = processar_texto(texto_para_analise)
-        
-        print(f"✅ NLP concluído:")
-        print(f"   - {len(resultado_nlp['entidades'])} entidades encontradas")
-        print(f"   - {len(resultado_nlp['palavras_chave'])} palavras-chave extraídas")
-        print(f"   - Query de busca: {resultado_nlp['query_busca']}")
-        
-        
+
+        log_info(f"✅ NLP concluído:")
+        log_info(f"   - {len(resultado_nlp['entidades'])} entidades encontradas")
+        log_info(f"   - {len(resultado_nlp['palavras_chave'])} palavras-chave extraídas")
+        log_info(f"   - Query de busca: {resultado_nlp['query_busca']}")
+
         # ETAPA 4: BUSCAR NAS FONTES CONFIÁVEIS
-        print(f"🔍 Buscando nas fontes confiáveis...")
+        log_info(f"🔍 Buscando nas fontes confiáveis...")
         resultado_busca = buscar_noticias(resultado_nlp['query_busca'])
-        
-        print(f"✅ Busca concluída:")
-        print(f"   - Total de resultados: {resultado_busca['metadata']['total_resultados']}")
-        print(f"   - Fontes com sucesso: {resultado_busca['metadata']['fontes_com_sucesso']}/{resultado_busca['metadata']['total_fontes']}")
-        
+
+        log_info(f"✅ Busca concluída:")
+        log_info(f"   - Total de resultados: {resultado_busca['metadata']['total_resultados']}")
+        log_info(f"   - Fontes com sucesso: {resultado_busca['metadata']['fontes_com_sucesso']}/{resultado_busca['metadata']['total_fontes']}")
+
         # APLICAR FILTROS NA BUSCA
         resultado_busca_filtrado = filtrar_busca(resultado_busca)
-        
-        print(f"✅ Filtros aplicados:")
-        print(f"   - Mantidos: {resultado_busca_filtrado['metadata']['total_resultados']}")
-        print(f"   - Filtrados: {resultado_busca_filtrado['metadata'].get('total_filtrados', 0)}")
-        
-        
+
+        log_info(f"✅ Filtros aplicados:")
+        log_info(f"   - Mantidos: {resultado_busca_filtrado['metadata']['total_resultados']}")
+        log_info(f"   - Filtrados: {resultado_busca_filtrado['metadata'].get('total_filtrados', 0)}")
+
         # ETAPA 5: EXTRAIR CONTEÚDO DAS URLs ENCONTRADAS
-        print(f"📥 Extraindo conteúdo das notícias encontradas...")
+        log_info(f"📥 Extraindo conteúdo das notícias encontradas...")
         resultado_scraping = scrape_noticias(resultado_busca_filtrado)
-        
-        print(f"✅ Scraping concluído:")
-        print(f"   - Total processado: {resultado_scraping['metadata']['total_scraped']}")
-        print(f"   - Sucessos: {resultado_scraping['metadata']['total_sucesso']}")
-        print(f"   - Taxa: {resultado_scraping['metadata']['taxa_sucesso']:.1f}%")
-        
+
+        log_info(f"✅ Scraping concluído:")
+        log_info(f"   - Total processado: {resultado_scraping['metadata']['total_scraped']}")
+        log_info(f"   - Sucessos: {resultado_scraping['metadata']['total_sucesso']}")
+        log_info(f"   - Taxa: {resultado_scraping['metadata']['taxa_sucesso']:.1f}%")
+
         # APLICAR FILTROS NO SCRAPING
         resultado_scraping_filtrado = filtrar_scraping(resultado_scraping, texto_para_analise)
-        
-        print(f"✅ Filtros aplicados:")
-        print(f"   - Mantidos: {resultado_scraping_filtrado['metadata']['total_sucesso']}")
-        print(f"   - Filtrados: {resultado_scraping_filtrado['metadata'].get('total_filtrados', 0)}")
-        
-        
+
+        log_info(f"✅ Filtros aplicados:")
+        log_info(f"   - Mantidos: {resultado_scraping_filtrado['metadata']['total_sucesso']}")
+        log_info(f"   - Filtrados: {resultado_scraping_filtrado['metadata'].get('total_filtrados', 0)}")
+
         # ETAPA 6: ANÁLISE SEMÂNTICA COM IA
-        print(f"🔬 Analisando similaridade semântica com IA...")
+        log_info(f"🔬 Analisando similaridade semântica com IA...")
         resultado_analise = analisar_semantica(texto_para_analise, resultado_scraping_filtrado)
-        
-        print(f"✅ Análise semântica concluída:")
-        print(f"   - Confirmam forte: {resultado_analise['metadata']['confirmam_forte']}")
-        print(f"   - Confirmam parcial: {resultado_analise['metadata']['confirmam_parcial']}")
-        print(f"   - Apenas mencionam: {resultado_analise['metadata']['apenas_mencionam']}")
-        
-        
+
+        log_info(f"✅ Análise semântica concluída:")
+        log_info(f"   - Confirmam forte: {resultado_analise['metadata']['confirmam_forte']}")
+        log_info(f"   - Confirmam parcial: {resultado_analise['metadata']['confirmam_parcial']}")
+        log_info(f"   - Apenas mencionam: {resultado_analise['metadata']['apenas_mencionam']}")
+
         # ETAPA 7: CÁLCULO DE VERACIDADE FINAL (SCORER)
-        print(f"🎯 Calculando veracidade final...")
+        log_info(f"🎯 Calculando veracidade final...")
         resultado_score = calcular_veracidade(resultado_analise, {
             'tipo_entrada': tipo,
             'tamanho_conteudo': len(texto_para_analise),
             'total_fontes_buscadas': resultado_busca['metadata']['total_resultados']
         })
-        
-        print(f"✅ Score calculado: {resultado_score['veracidade']}%")
-        print(f"   Nível de confiança: {resultado_score['nivel_confianca']}")
-        
+
+        log_info(f"✅ Score calculado: {resultado_score['veracidade']}%")
+        log_info(f"   Nível de confiança: {resultado_score['nivel_confianca']}")
+
         # Preparar fontes consultadas
         fontes_consultadas = []
-        
+
         # Primeiro, coletar TODAS as URLs originais do resultado da busca
         # para garantir que temos as URLs completas
         urls_originais_busca = {}
@@ -180,27 +206,27 @@ def verificar_noticia():
                 # Usar título como chave para mapear
                 titulo_chave = res.get('title', '')[:50]
                 urls_originais_busca[titulo_chave] = url
-        
+
         for fonte_nome, fonte_analises in resultado_analise.items():
             if fonte_nome == 'metadata':
                 continue
-            
+
             for analise in fonte_analises:
                 if analise.get('sucesso'):
                     # Tentar recuperar URL original da busca
                     titulo = analise.get('titulo', '')
                     titulo_chave = titulo[:50]
-                    
+
                     # Usar URL da análise, mas verificar se não está truncada
                     url_analise = analise.get('url', '')
-                    
+
                     # Se URL parece truncada (< 80 chars), tentar recuperar original
                     if len(url_analise) < 80 and titulo_chave in urls_originais_busca:
                         url_final = urls_originais_busca[titulo_chave]
-                        print(f"[RECUPERADO] URL completa de {fonte_nome}: {len(url_final)} chars")
+                        log_info(f"[RECUPERADO] URL completa de {fonte_nome}: {len(url_final)} chars")
                     else:
                         url_final = url_analise
-                    
+
                     fontes_consultadas.append({
                         "nome": fonte_nome,
                         "url": url_final,  # URL GARANTIDAMENTE COMPLETA
@@ -209,12 +235,12 @@ def verificar_noticia():
                         "status": analise.get('status', ''),
                         "motivo": analise.get('motivo', '')
                     })
-        
+
         fontes_consultadas.sort(key=lambda x: x['similaridade'], reverse=True)
-        
+
         # Montar resposta final
         meta_analise = resultado_analise['metadata']
-        
+
         resposta = {
             "veracidade": resultado_score['veracidade'],
             "justificativa": resultado_score['justificativa'],
@@ -255,11 +281,15 @@ def verificar_noticia():
                 "modo_busca": resultado_busca['metadata']['modo_busca']
             }
         }
-        
+
+        log_info(
+            f"🎉 Análise concluída com sucesso | veracidade={resposta['veracidade']}% | fontes={len(fontes_consultadas)}"
+        )
+
         return jsonify(resposta), 200
-    
-    
+
     except Exception as e:
+        app.logger.exception("Erro interno ao verificar notícia")
         return jsonify({
             "erro": "Erro interno do servidor",
             "detalhes": str(e),
@@ -310,25 +340,25 @@ def index():
 
 
 if __name__ == '__main__':
-    print("=" * 70)
-    print("🚀 Iniciando News Verifier API...")
-    print("=" * 70)
-    print(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
-    print(f"📍 Versão: 1.0-final (COMPLETA)")
-    print(f"📍 Pressione Ctrl+C para parar o servidor")
-    print("=" * 70)
-    print()
-    print("✅ Módulos carregados:")
-    print("   1. ✅ Extractor (URLs)")
-    print("   2. ✅ NLP Processor (spaCy)")
-    print("   3. ✅ Searcher (Busca Híbrida)")
-    print("   4. ✅ Filters (Anti-paywall/404)")
-    print("   5. ✅ Scraper (Conteúdo)")
-    print("   6. ✅ Semantic Analyzer (IA)")
-    print("   7. ✅ Scorer (Veracidade)")
-    print("=" * 70)
-    print()
-    
+    log_info("=" * 70)
+    log_info("🚀 Iniciando News Verifier API...")
+    log_info("=" * 70)
+    log_info(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
+    log_info(f"📍 Versão: 1.0-final (COMPLETA)")
+    log_info(f"📍 Pressione Ctrl+C para parar o servidor")
+    log_info("=" * 70)
+    log_info()
+    log_info("✅ Módulos carregados:")
+    log_info("   1. ✅ Extractor (URLs)")
+    log_info("   2. ✅ NLP Processor (spaCy)")
+    log_info("   3. ✅ Searcher (Busca Híbrida)")
+    log_info("   4. ✅ Filters (Anti-paywall/404)")
+    log_info("   5. ✅ Scraper (Conteúdo)")
+    log_info("   6. ✅ Semantic Analyzer (IA)")
+    log_info("   7. ✅ Scorer (Veracidade)")
+    log_info("=" * 70)
+    log_info()
+
     app.run(
         host=Config.HOST,
         port=Config.PORT,
