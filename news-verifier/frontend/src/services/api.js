@@ -6,7 +6,7 @@ const DEFAULT_HEADERS = {
 const baseURL = 'http://127.0.0.1:5000/api';
 
 /**
- * Monta o corpo da requisição no formato esperado pelo backend:
+ * Corpo esperado pelo backend:
  * {
  *   "tipo": "url" | "texto",
  *   "conteudo": "..."
@@ -20,12 +20,11 @@ function buildPayload(type, payload) {
 }
 
 /**
- * Faz POST para /api/verificar e retorna o resultado mapeado
- * para o formato que o frontend consome.
+ * POST /api/verificar → normaliza e devolve o resultado.
  */
 export async function verifyNewsRequest(type, payload) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     const response = await fetch(`${baseURL}/verificar`, {
@@ -40,30 +39,46 @@ export async function verifyNewsRequest(type, payload) {
     }
 
     const data = await response.json();
-    if (!data) {
-      throw new Error('Resposta inválida da API');
-    }
+    if (!data) throw new Error('Resposta inválida da API');
 
-    // Normaliza "veracidade" vindo como número, "47%", "47,0", etc.
-    const vRaw = data?.veracidade ?? data?.score ?? data?.veracity ?? 0;
+    // --- Normalização blindada do score ---
+    const raw = data?.veracidade ?? data?.score ?? data?.veracity ?? 0;
     const veracidade =
-      typeof vRaw === 'number'
-        ? vRaw
-        : parseFloat(String(vRaw).replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
+      typeof raw === 'number'
+        ? raw
+        : parseFloat(String(raw).replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
 
+    // Garante faixa 0..100 e inteiro auxiliar
+    const veracityClamped = Math.max(0, Math.min(100, veracidade));
+    const veracityInt = Math.round(veracityClamped);
+
+    // --- Mapeamento amplo (compat com vários componentes) ---
     return {
-      veracity_score: veracidade, // sempre número
+      // numéricos
+      veracity_score: veracityClamped, // principal
+      veracity: veracityClamped,       // alias
+      score: veracityClamped,          // alias
+      percent: veracityClamped,        // alias
+      percentage: veracityClamped,     // alias
+      percent_int: veracityInt,        // inteiro
+
+      // textos/listas
       summary: data?.justificativa ?? data?.mensagem ?? 'Análise concluída.',
       confidence_level: data?.nivel_confianca ?? 'Desconhecido',
-      related_sources: data?.fontes_consultadas ?? [],
+      related_sources: data?.related_sources ?? [],
       main_source: data?.titulo_analisado ?? '',
+
+      // extras (caso sua UI use)
       metadata: data?.metadata ?? {},
       nlp: data?.analise_nlp ?? {},
-      semantic: data?.analise_semantica ?? {}
+      semantic: data?.analise_semantica ?? {},
+
+      // payload bruto (debug/telemetria)
+      raw: data
     };
-  } catch (error) {
-    console.error('Erro ao verificar notícia:', error);
-    throw error;
+  } catch (err) {
+    console.error('Erro ao verificar notícia:', err);
+    throw err;
   } finally {
     clearTimeout(timeoutId);
   }

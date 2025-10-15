@@ -20,13 +20,17 @@ export default function useNewsVerification() {
     try {
       const response = await verifyNewsRequest(type, payload);
 
-      // Garante formato seguro para renderização
+      // ✅ CORREÇÃO: Mantém a estrutura exata retornada pela API
       setResult({
-        veracity: Number(response.veracity_score ?? 0) || 0,
-        summary: response.summary ?? 'Análise concluída com sucesso.',
-        sources: response.related_sources ?? [],
-        confidence: response.confidence_level ?? 'Desconhecido',
-        mainSource: response.main_source ?? ''
+        veracity_score: response.veracity_score,
+        summary: response.summary,
+        related_sources: response.related_sources,
+        signals: response.signals,
+        confidence_level: response.confidence_level,
+        main_source: response.main_source,
+        metadata: response.metadata,
+        nlp: response.nlp,
+        semantic: response.semantic
       });
 
       setStatus(STATUS.success);
