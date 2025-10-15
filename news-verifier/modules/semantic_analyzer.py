@@ -26,6 +26,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from config import Config
+import os
 import time
 
 
@@ -50,14 +51,24 @@ def _carregar_modelo():
         print("📚 Carregando modelo sentence-transformers...")
         print(f"   Modelo: {Config.SENTENCE_TRANSFORMER_MODEL}")
         print("   ⏳ Isso pode demorar 30-60s na primeira vez...")
-        
+
         inicio = time.time()
-        
+
         try:
-            _semantic_model = SentenceTransformer(Config.SENTENCE_TRANSFORMER_MODEL)
+            cache_dir = Config.MODEL_CACHE_DIR
+            cache_dir.mkdir(parents=True, exist_ok=True)
+
+            os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", str(cache_dir))
+            os.environ.setdefault("TRANSFORMERS_CACHE", str(cache_dir / "transformers"))
+            os.environ.setdefault("HF_HOME", str(cache_dir / "huggingface"))
+
+            _semantic_model = SentenceTransformer(
+                Config.SENTENCE_TRANSFORMER_MODEL,
+                cache_folder=str(cache_dir)
+            )
             tempo = time.time() - inicio
             print(f"   ✅ Modelo carregado em {tempo:.1f}s!")
-        
+
         except Exception as e:
             print(f"   ❌ ERRO ao carregar modelo: {e}")
             print("   Verifique se sentence-transformers está instalado:")
