@@ -13,6 +13,7 @@ Data: 2025
 """
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 # ============================================================================
@@ -26,6 +27,9 @@ load_dotenv()
 # ============================================================================
 # CLASSE DE CONFIGURAÇÃO
 # ============================================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
 
 class Config:
     """
@@ -160,6 +164,9 @@ class Config:
     
     # Modelo de sentence transformers para similaridade semântica
     SENTENCE_TRANSFORMER_MODEL = "paraphrase-multilingual-mpnet-base-v2"
+
+    # Diretório para cache local dos modelos de IA (spaCy, sentence-transformers etc.)
+    MODEL_CACHE_DIR = Path(os.getenv('MODEL_CACHE_DIR', BASE_DIR / 'model_cache'))
     
     # Threshold de similaridade para considerar textos relacionados
     # Valores entre 0 e 1 (quanto maior, mais similar)
