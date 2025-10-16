@@ -4,11 +4,17 @@ import { FiLink, FiFileText, FiRefreshCw, FiSend } from 'react-icons/fi';
 const INPUT_TYPES = {
   url: {
     label: 'Validar por URL',
-    placeholder: 'https://exemplo.com/noticia-importante'
+    placeholder: 'https://exemplo.com/noticia-importante',
+    minLength: 10,
+    helpText: 'Informe o endereço completo da notícia que será analisada.',
+    errorText: 'Informe uma URL válida com pelo menos 10 caracteres.'
   },
   text: {
     label: 'Validar por texto',
-    placeholder: 'Cole o conteúdo da notícia que deseja analisar...'
+    placeholder: 'Cole o conteúdo da notícia que deseja analisar...',
+    minLength: 50,  // ✅ CORREÇÃO: Alinhado com o backend (Config.MIN_CONTENT_LENGTH)
+    helpText: 'Insira o texto completo da notícia. Mínimo de 50 caracteres para análise precisa.',
+    errorText: 'Insira pelo menos 50 caracteres para permitir a análise.'
   }
 };
 
@@ -24,7 +30,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
   const isLoading = status === 'loading';
 
   const charCount = useMemo(() => form.value.trim().length, [form.value]);
-  const isFormValid = charCount >= (form.mode === 'url' ? 10 : 30);
+  const isFormValid = charCount >= INPUT_TYPES[form.mode].minLength;
 
   const handleModeChange = (mode) => {
     setForm({ mode, value: '' });
@@ -40,8 +46,16 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
       return;
     }
 
+    // ✅ LOG: Mostra o que está sendo enviado
+    console.log('📤 Enviando verificação:', {
+      mode: form.mode,
+      type: form.mode,  // 'url' ou 'text'
+      payload: form.value.trim(),
+      length: form.value.trim().length
+    });
+
     onSubmit({
-      type: form.mode,
+      type: form.mode,  // ✅ Envia 'url' ou 'text' (em inglês)
       payload: form.value.trim()
     });
   };
@@ -52,6 +66,8 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
     onReset?.();
   };
 
+  const currentConfig = INPUT_TYPES[form.mode];
+
   return (
     <form className="card" onSubmit={handleSubmit}>
       <header className="card__header">
@@ -59,6 +75,19 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
         <p>
           Escolha validar por URL ou texto completo. O NewsTrust retornará um percentual de veracidade com justificativas baseadas em fontes confiáveis.
         </p>
+        {isLoading && (
+          <p style={{ 
+            background: 'rgba(59, 130, 246, 0.1)', 
+            padding: '0.75rem 1rem', 
+            borderRadius: '12px',
+            color: '#1e40af',
+            fontSize: '0.9rem',
+            margin: '0.5rem 0 0',
+            border: '1px solid rgba(59, 130, 246, 0.2)'
+          }}>
+            ⏳ <strong>Tempo estimado:</strong> 1-3 minutos. Aguarde enquanto analisamos múltiplas fontes confiáveis.
+          </p>
+        )}
       </header>
 
       <div className="toggle">
@@ -77,17 +106,13 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
 
       <label className="field">
         <span>
-          {INPUT_TYPES[form.mode].label}
-          <small>
-            {form.mode === 'url'
-              ? 'Informe o endereço completo da notícia que será analisada.'
-              : 'Quanto mais detalhes, melhor. O mínimo recomendado são 30 caracteres.'}
-          </small>
+          {currentConfig.label}
+          <small>{currentConfig.helpText}</small>
         </span>
         {form.mode === 'url' ? (
           <input
             type="url"
-            placeholder={INPUT_TYPES.url.placeholder}
+            placeholder={currentConfig.placeholder}
             value={form.value}
             onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))}
             disabled={isLoading}
@@ -95,11 +120,11 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
           />
         ) : (
           <textarea
-            placeholder={INPUT_TYPES.text.placeholder}
+            placeholder={currentConfig.placeholder}
             value={form.value}
             onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))}
             disabled={isLoading}
-            minLength={30}
+            minLength={currentConfig.minLength}
             rows={8}
             required
           />
@@ -109,11 +134,12 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
       <div className="form__footer">
         <div className="form__status">
           <strong>{charCount}</strong> caracteres
+          <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
+            (mínimo: {currentConfig.minLength})
+          </span>
           {touched && !isFormValid && (
             <span className="form__warning">
-              {form.mode === 'url'
-                ? 'Informe uma URL válida com pelo menos 10 caracteres.'
-                : 'Insira pelo menos 30 caracteres para permitir a análise.'}
+              {currentConfig.errorText}
             </span>
           )}
           {lastRequest && (

@@ -1,0 +1,14 @@
+{
+  "url": "https://g1.globo.com/fato-ou-fake/noticia/2018/09/25/fato-ou-fake-saiba-como-identificar-se-um-conteudo-e-falso.ghtml",
+  "timestamp": 1760568844.988551,
+  "conteudo": {
+    "url": "https://g1.globo.com/fato-ou-fake/noticia/2018/09/25/fato-ou-fake-saiba-como-identificar-se-um-conteudo-e-falso.ghtml",
+    "titulo": "Fato ou Fake? Saiba como identificar se um conteúdo é falso",
+    "texto": "Em maio de 2018, por exemplo, internautas compartilharam um vídeo informando equivocadamente que militares haviam começado a fiscalizar o Congresso Nacional. As imagens, porém, eram de uma visita dos estagiários dos cursos de Alto Comando da Escola Superior de Guerra, da Escola de Guerra Naval e da Escola de Comando e Estado-Maior do Exército, previamente agendada. Ao contrário do que foi noticiado por alguns sites, que o \"Exército quer marcar presença para garantir a democracia e a segurança nacional\", ninguém do grupo fez qualquer pronunciamento durante o encontro. A íntegra estava disponível no canal da TV Senado no Youtube.",
+    "data_publicacao": "2018-09-25",
+    "autor": null,
+    "metodo_extracao": "newspaper3k",
+    "sucesso": true,
+    "erro": null
+  }
+}

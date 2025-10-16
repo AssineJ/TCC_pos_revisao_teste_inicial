@@ -1,6 +1,5 @@
+# modules/scraper.py - Módulo de Scraping de Notícias
 """
-scraper.py - Módulo de Scraping de Notícias
-
 Responsabilidade:
     Extrair conteúdo completo das URLs encontradas pelo searcher.
     Usa o mesmo sistema do extractor.py, mas em batch (múltiplas URLs).
@@ -381,7 +380,150 @@ class NewsScraper:
 
 
 # ============================================================================
-# FUNÇÃO DE CONVENIÊNCIA
+# FUNÇÕES ADICIONADAS — SCRAPING PARALELO DE TODAS AS FONTES
+# ============================================================================
+
+# Singletons leves para uso nas funções paralelas
+_EXTRACTOR_SINGLETON = ContentExtractor()
+_SCRAPE_CACHE_SINGLETON = ScraperCache()
+
+def extrair_conteudo_url(url_info):
+    """
+    Extrai conteúdo de UMA URL (worker para pool).
+    Args:
+        url_info: tuple(str fonte_nome, dict resultado_busca_item)
+    Return:
+        (fonte_nome, dict resultado_extracao)
+    """
+    fonte_nome, dados = url_info
+    url = (dados or {}).get("url", "")
+    titulo_prv = (dados or {}).get("title", "")
+
+    if not url:
+        return fonte_nome, {
+            'url': url,
+            'titulo': titulo_prv,
+            'texto': None,
+            'data_publicacao': None,
+            'autor': None,
+            'sucesso': False,
+            'erro': 'URL vazia'
+        }
+
+    # cache
+    cache_hit = _SCRAPE_CACHE_SINGLETON.obter(url)
+    if cache_hit:
+        return fonte_nome, cache_hit
+
+    # normalizar
+    if not url.startswith("http"):
+        url = "https://" + url
+
+    try:
+        print(f"      🔄 (paralelo) Extraindo: {url[:80]}...")
+        res = _EXTRACTOR_SINGLETON.extract(url)
+        res['url'] = url
+        if not res.get('titulo') and titulo_prv:
+            res['titulo'] = titulo_prv
+        if res.get('sucesso'):
+            _SCRAPE_CACHE_SINGLETON.salvar(url, res)
+        return fonte_nome, res
+    except Exception as e:
+        return fonte_nome, {
+            'url': url,
+            'titulo': titulo_prv,
+            'texto': None,
+            'data_publicacao': None,
+            'autor': None,
+            'sucesso': False,
+            'erro': str(e)
+        }
+
+def scrape_noticias_paralelo(resultado_busca):
+    """
+    Extrai conteúdo de TODAS as URLs simultaneamente (todas as fontes).
+    Respeita fontes com paywall usando título+snippet.
+    Retorna no mesmo formato do scrape_noticias()/scrape_resultados_busca().
+    """
+    # 1) Separar por tipo de processamento
+    fontes_paywall = set(Config.SOURCES_WITH_PAYWALL)
+    tarefas = []            # (fonte_nome, item_resultado_busca) -> scraping real
+    conteudos_por_fonte = {}  # dict fonte -> list(resultados)
+    total_urls = 0
+    total_sucesso = 0
+
+    # Monta lista plana de tarefas e já resolve paywall
+    for fonte_nome, resultados in resultado_busca.items():
+        if fonte_nome == 'metadata':
+            continue
+
+        conteudos_por_fonte.setdefault(fonte_nome, [])
+
+        # resultados vazios
+        if not resultados:
+            continue
+
+        # Paywall: usa título+snippet
+        if fonte_nome in fontes_paywall:
+            print(f"  📰 {fonte_nome}: {len(resultados)} URL(s) (paywall) → título+snippet")
+            for r in resultados:
+                titulo = r.get('title', '')
+                snippet = r.get('snippet', '')
+                url = r.get('url', '')
+                texto = f"{titulo}. {snippet}".strip()
+                ok = len(texto) >= 30
+                conteudos_por_fonte[fonte_nome].append({
+                    'url': url,
+                    'titulo': titulo,
+                    'texto': texto if ok else '',
+                    'data_publicacao': None,
+                    'autor': None,
+                    'metodo_extracao': 'titulo_snippet',
+                    'sucesso': ok,
+                    'erro': None if ok else 'Título+snippet muito curto'
+                })
+                total_urls += 1
+                if ok:
+                    total_sucesso += 1
+            continue
+
+        # Normal: enfileira para scraping paralelo
+        print(f"  📰 {fonte_nome}: {len(resultados)} URL(s)")
+        for r in resultados:
+            tarefas.append((fonte_nome, r))
+            total_urls += 1
+
+    # 2) Executar scraping real em paralelo
+    if tarefas:
+        print(f"\n📥 Extraindo {len(tarefas)} URLs em PARALELO...")
+        max_workers = min(10, len(tarefas))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {executor.submit(extrair_conteudo_url, info): info for info in tarefas}
+            for future in as_completed(future_map):
+                fonte_nome, resultado = future.result()
+                if fonte_nome not in conteudos_por_fonte:
+                    conteudos_por_fonte[fonte_nome] = []
+                conteudos_por_fonte[fonte_nome].append(resultado)
+                if resultado.get('sucesso'):
+                    total_sucesso += 1
+
+    taxa_sucesso = (total_sucesso / total_urls * 100) if total_urls else 0.0
+    print(f"\n✅ Scraping (paralelo) concluído: {total_sucesso}/{total_urls} ({taxa_sucesso:.1f}%)")
+
+    return {
+        **conteudos_por_fonte,
+        'metadata': {
+            'total_scraped': total_urls,
+            'total_sucesso': total_sucesso,
+            'total_falhas': max(0, total_urls - total_sucesso),
+            'taxa_sucesso': round(taxa_sucesso, 2),
+            'modo_scraping': 'parallel'
+        }
+    }
+
+
+# ============================================================================
+# FUNÇÃO DE CONVENIÊNCIA (sequencial já existente)
 # ============================================================================
 
 def scrape_noticias(resultados_busca):
@@ -434,14 +576,14 @@ if __name__ == "__main__":
         'G1': [
             {
                 'title': 'Notícia teste 1',
-                'url': 'https://g1.globo.com/',  # URL real para testar
+                'url': 'https://g1.globo.com/',
                 'snippet': 'Snippet de teste'
             }
         ],
         'Folha de S.Paulo': [
             {
                 'title': 'Notícia teste 2',
-                'url': 'https://www.folha.uol.com.br/',  # URL real para testar
+                'url': 'https://www.folha.uol.com.br/',
                 'snippet': 'Snippet de teste'
             }
         ],
@@ -454,16 +596,18 @@ if __name__ == "__main__":
     print("📝 Simulando busca com 2 URLs...")
     print()
     
-    # Fazer scraping
-    conteudos = scrape_noticias(resultados_busca_mock)
+    # Sequencial (classe)
+    conteudos_seq = scrape_noticias(resultados_busca_mock)
+    # Paralelo (todas as fontes)
+    conteudos_par = scrape_noticias_paralelo(resultados_busca_mock)
     
     # Mostrar resultados
     print("\n" + "=" * 70)
-    print("✅ RESULTADOS DO SCRAPING:")
+    print("✅ RESULTADOS DO SCRAPING (PARALELO):")
     print("=" * 70)
     print()
     
-    for fonte_nome, fonte_conteudos in conteudos.items():
+    for fonte_nome, fonte_conteudos in conteudos_par.items():
         if fonte_nome == 'metadata':
             continue
         
@@ -471,17 +615,17 @@ if __name__ == "__main__":
         for i, conteudo in enumerate(fonte_conteudos, 1):
             print(f"\n  {i}. URL: {conteudo['url'][:60]}...")
             if conteudo['sucesso']:
-                print(f"     ✅ Título: {conteudo['titulo'][:50]}...")
-                print(f"     📄 Texto: {len(conteudo['texto'])} caracteres")
-                print(f"     📅 Data: {conteudo['data_publicacao']}")
-                print(f"     ✍️  Autor: {conteudo['autor']}")
+                print(f"     ✅ Título: {conteudo.get('titulo','')[:50]}...")
+                print(f"     📄 Texto: {len(conteudo.get('texto','') or '')} caracteres")
+                print(f"     📅 Data: {conteudo.get('data_publicacao')}")
+                print(f"     ✍️  Autor: {conteudo.get('autor')}")
             else:
-                print(f"     ❌ Erro: {conteudo['erro']}")
+                print(f"     ❌ Erro: {conteudo.get('erro')}")
         print()
     
     # Metadata
-    meta = conteudos['metadata']
-    print("📊 ESTATÍSTICAS:")
+    meta = conteudos_par['metadata']
+    print("📊 ESTATÍSTICAS (PARALELO):")
     print(f"  Total processado: {meta['total_scraped']}")
     print(f"  Sucessos: {meta['total_sucesso']}")
     print(f"  Falhas: {meta['total_falhas']}")

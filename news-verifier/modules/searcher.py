@@ -1,649 +1,386 @@
-"""
-searcher.py - Módulo de Busca em Fontes Confiáveis
+# modules/searcher.py
+from __future__ import annotations
 
-Responsabilidade:
-    Buscar notícias relacionadas nas 5 fontes confiáveis usando:
-    1. Mock (dados simulados para desenvolvimento)
-    2. SerpAPI (API oficial do Google - recomendado)
-    3. googlesearch-python (scraping do Google - fallback)
-    4. Busca direta nos sites (scraping - último recurso)
-
-Estratégia Híbrida:
-    - Tenta múltiplos métodos automaticamente
-    - Sistema de cache para economizar requisições
-    - Fallback automático se um método falhar
-
-Autor: Projeto Acadêmico
-Data: 2025
-"""
-
-import requests
+import os
+import re
 import time
 import json
-import os
 import hashlib
-from datetime import datetime
-from bs4 import BeautifulSoup
-from config import Config
 import random
+from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Importações condicionais (podem não estar instaladas)
+import requests
+from bs4 import BeautifulSoup
+
+from config import Config
+
+# -----------------------------
+# Opicionais (nem sempre instalados)
+# -----------------------------
 try:
-    from serpapi import GoogleSearch
+    from serpapi import GoogleSearch  # google-search-results
     SERPAPI_AVAILABLE = True
-except ImportError:
+except Exception:
     SERPAPI_AVAILABLE = False
-    print("⚠️  SerpAPI não disponível. Instale com: pip install google-search-results")
 
 try:
+    # googlesearch-python
     from googlesearch import search as google_search
-    GOOGLESEARCH_AVAILABLE = True
-except ImportError:
-    GOOGLESEARCH_AVAILABLE = False
-    print("⚠️  googlesearch-python não disponível. Instale com: pip install googlesearch-python")
+    GSEARCH_AVAILABLE = True
+except Exception:
+    GSEARCH_AVAILABLE = False
 
 
-# ============================================================================
-# CLASSE DE CACHE
-# ============================================================================
+# ============================================================
+# Utils de cache simples em arquivo (por query+site)
+# ============================================================
 
-class SearchCache:
-    """
-    Gerencia cache de resultados de busca para economizar requisições.
-    """
-    
-    def __init__(self, cache_dir='cache_searches'):
-        """
-        Inicializa cache.
-        
-        Args:
-            cache_dir (str): Diretório para armazenar cache
-        """
-        self.cache_dir = cache_dir
-        
-        # Criar diretório se não existir
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-    
-    
-    def _gerar_chave(self, query, site):
-        """
-        Gera chave única para query + site.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            str: Hash MD5 como chave
-        """
-        texto = f"{query}_{site}".lower()
-        return hashlib.md5(texto.encode()).hexdigest()
-    
-    
-    def obter(self, query, site):
-        """
-        Obtém resultado do cache se existir e não expirou.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            dict ou None: Resultado em cache ou None
-        """
-        if not Config.ENABLE_CACHE:
+def _cache_dir() -> str:
+    d = os.path.join(".cache", "search")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+def _cache_key(query: str, site: str) -> str:
+    key_str = f"{query}||{site}".lower().strip()
+    return hashlib.sha256(key_str.encode("utf-8")).hexdigest()
+
+def _cache_path(query: str, site: str) -> str:
+    return os.path.join(_cache_dir(), f"{_cache_key(query, site)}.json")
+
+def cache_get(query: str, site: str) -> Optional[List[Dict[str, Any]]]:
+    if not Config.ENABLE_CACHE:
+        return None
+    path = _cache_path(query, site)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        # expiração
+        ttl = getattr(Config, "CACHE_EXPIRATION", 3600)
+        if time.time() - payload.get("_ts", 0) > ttl:
             return None
-        
-        chave = self._gerar_chave(query, site)
-        cache_file = os.path.join(self.cache_dir, f"{chave}.json")
-        
-        # Verificar se arquivo existe
-        if not os.path.exists(cache_file):
-            return None
-        
-        # Ler cache
-        try:
-            with open(cache_file, 'r', encoding='utf-8') as f:
-                cache_data = json.load(f)
-            
-            # Verificar se expirou
-            timestamp = cache_data.get('timestamp', 0)
-            now = datetime.now().timestamp()
-            
-            if (now - timestamp) > Config.CACHE_EXPIRATION:
-                # Cache expirado, deletar
-                os.remove(cache_file)
-                return None
-            
-            return cache_data.get('resultados')
-        
-        except Exception as e:
-            print(f"⚠️  Erro ao ler cache: {e}")
-            return None
-    
-    
-    def salvar(self, query, site, resultados):
-        """
-        Salva resultado no cache.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            resultados (list): Lista de resultados
-        """
-        if not Config.ENABLE_CACHE:
-            return
-        
-        chave = self._gerar_chave(query, site)
-        cache_file = os.path.join(self.cache_dir, f"{chave}.json")
-        
-        cache_data = {
-            'query': query,
-            'site': site,
-            'timestamp': datetime.now().timestamp(),
-            'resultados': resultados
-        }
-        
-        try:
-            with open(cache_file, 'w', encoding='utf-8') as f:
-                json.dump(cache_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"⚠️  Erro ao salvar cache: {e}")
+        return payload.get("results", None)
+    except Exception:
+        return None
+
+def cache_set(query: str, site: str, results: List[Dict[str, Any]]) -> None:
+    if not Config.ENABLE_CACHE:
+        return
+    path = _cache_path(query, site)
+    payload = {"_ts": time.time(), "results": results}
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 
-# ============================================================================
-# CLASSE PRINCIPAL - SEARCH ENGINE
-# ============================================================================
+# ============================================================
+# Normalização de resultados
+# ============================================================
 
+def _norm_result(title: str, url: str, snippet: str = "") -> Dict[str, Any]:
+    return {
+        "title": title.strip() if title else "",
+        "url": url.strip() if url else "",
+        "snippet": snippet.strip() if snippet else ""
+    }
+
+def _clean_text(s: str) -> str:
+    s = re.sub(r"\s+", " ", s or "").strip()
+    return s
+
+
+# ============================================================
+# Mecanismo principal de busca
+# ============================================================
+
+@dataclass
 class SearchEngine:
-    """
-    Motor de busca híbrido que tenta múltiplos métodos automaticamente.
-    """
-    
-    def __init__(self):
-        """Inicializa motor de busca com cache"""
-        self.cache = SearchCache()
-        self.serpapi_count = 0  # Contador de requisições SerpAPI
-    
-    
-    def buscar_em_todas_fontes(self, query):
-        """
-        Busca query em todas as fontes confiáveis.
-        
-        Args:
-            query (str): Query de busca gerada pelo NLP
-            
-        Returns:
-            dict: {
-                'fonte1': [resultados],
-                'fonte2': [resultados],
-                ...
-                'metadata': {
-                    'total_resultados': int,
-                    'fontes_com_sucesso': int,
-                    'metodo_usado': str
-                }
-            }
-        """
-        print(f"\n🔍 Iniciando busca nas {len(Config.TRUSTED_SOURCES)} fontes...")
-        print(f"Query: {query}")
-        print(f"Modo: {Config.SEARCH_MODE}")
-        print()
-        
-        resultados_por_fonte = {}
-        fontes_sucesso = 0
-        total_resultados = 0
-        
-        for fonte in Config.TRUSTED_SOURCES:
-            if not fonte['ativo']:
-                continue
-            
-            nome_fonte = fonte['nome']
-            dominio = fonte['dominio']
-            
-            print(f"  Buscando em: {nome_fonte}...")
-            
-            # Buscar nesta fonte
-            resultados = self.buscar(query, dominio)
-            
-            if resultados:
-                resultados_por_fonte[nome_fonte] = resultados
-                fontes_sucesso += 1
-                total_resultados += len(resultados)
-                print(f"    ✅ {len(resultados)} resultados encontrados")
-            else:
-                resultados_por_fonte[nome_fonte] = []
-                print(f"    ❌ Nenhum resultado")
-            
-            # Delay entre buscas
-            time.sleep(Config.SEARCH_DELAY)
-        
-        print(f"\n✅ Busca concluída: {total_resultados} resultados em {fontes_sucesso} fontes")
-        
-        return {
-            **resultados_por_fonte,
-            'metadata': {
-                'total_resultados': total_resultados,
-                'fontes_com_sucesso': fontes_sucesso,
-                'total_fontes': len([f for f in Config.TRUSTED_SOURCES if f['ativo']]),
-                'query_original': query,
-                'modo_busca': Config.SEARCH_MODE
-            }
-        }
-    
-    
-    def buscar(self, query, site):
-        """
-        Busca em um site específico usando estratégia híbrida.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            list: Lista de resultados [{title, url, snippet}, ...]
-        """
-        # Verificar cache primeiro
-        cache_result = self.cache.obter(query, site)
-        if cache_result:
-            print(f"    💾 Cache hit!")
-            return cache_result
-        
-        # Determinar método(s) a usar
-        if Config.SEARCH_MODE == 'mock':
-            resultados = self._buscar_mock(query, site)
-        
-        elif Config.SEARCH_MODE == 'serpapi':
-            resultados = self._buscar_serpapi(query, site)
-        
-        elif Config.SEARCH_MODE == 'googlesearch':
-            resultados = self._buscar_googlesearch(query, site)
-        
-        elif Config.SEARCH_MODE == 'direct':
-            resultados = self._buscar_direto(query, site)
-        
-        elif Config.SEARCH_MODE == 'hybrid':
-            # Tentar métodos na ordem de prioridade
-            resultados = self._buscar_hybrid(query, site)
-        
+    headers: Dict[str, str] = None
+    max_per_source: int = Config.MAX_RESULTS_PER_SOURCE
+    delay_between: float = getattr(Config, "SEARCH_DELAY", 1.0)
+
+    def __post_init__(self):
+        if self.headers is None:
+            self.headers = dict(Config.DEFAULT_HEADERS)
+
+    # --------------- API ---------------
+
+    def buscar(self, query: str, dominio: str) -> List[Dict[str, Any]]:
+        """Busca resultados para um domínio específico."""
+        query = _clean_text(query)
+        if not query or not dominio:
+            return []
+
+        # cache
+        cached = cache_get(query, dominio)
+        if cached is not None:
+            return cached[: self.max_per_source]
+
+        # ordem de prioridade
+        methods = getattr(Config, "SEARCH_METHODS_PRIORITY", ["serpapi", "googlesearch", "direct"])
+        mode = getattr(Config, "SEARCH_MODE", "mock").lower()
+
+        results: List[Dict[str, Any]] = []
+
+        if mode == "mock":
+            results = self._mock_results(dominio, query)
         else:
-            print(f"    ⚠️  Modo desconhecido: {Config.SEARCH_MODE}")
-            resultados = []
-        
-        # Salvar no cache
-        if resultados:
-            self.cache.salvar(query, site, resultados)
-        
-        return resultados
-    
-    
-    def _buscar_hybrid(self, query, site):
-        """
-        Tenta múltiplos métodos até obter sucesso.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            list: Resultados
-        """
-        for metodo in Config.SEARCH_METHODS_PRIORITY:
-            try:
-                print(f"      Tentando método: {metodo}")
-                
-                if metodo == 'serpapi':
-                    resultados = self._buscar_serpapi(query, site)
-                elif metodo == 'googlesearch':
-                    resultados = self._buscar_googlesearch(query, site)
-                elif metodo == 'direct':
-                    resultados = self._buscar_direto(query, site)
-                else:
-                    continue
-                
-                if resultados:
-                    print(f"      ✅ Sucesso com {metodo}")
-                    return resultados
-                
-            except Exception as e:
-                print(f"      ⚠️  {metodo} falhou: {str(e)[:50]}...")
-                continue
-        
-        print(f"      ❌ Todos os métodos falharam")
-        return []
-    
-    
-    def _buscar_mock(self, query, site):
-        """
-        Retorna dados simulados para desenvolvimento.
-        NÃO faz requisições reais.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            list: Resultados simulados
-        """
-        # Simular diferentes cenários
-        num_resultados = random.randint(1, 3)
-        
-        resultados = []
-        for i in range(num_resultados):
-            resultados.append({
-                'title': f'Notícia {i+1} sobre {query[:30]} - {site}',
-                'url': f'https://{site}/noticia-simulada-{i+1}',
-                'snippet': f'Este é um resultado simulado para testes. Query: {query}. '
-                          f'Em produção, aqui aparecerá o snippet real da notícia encontrada.'
-            })
-        
-        return resultados
-    
-    
-    def _buscar_serpapi(self, query, site):
-        """
-        Busca usando SerpAPI (Google Search API oficial).
-        Requer chave de API.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            list: Resultados
-        """
-        if not SERPAPI_AVAILABLE:
-            raise Exception("SerpAPI não instalado")
-        
-        if not Config.SERPAPI_KEY:
-            raise Exception("SERPAPI_KEY não configurada")
-        
-        # Verificar limite de requisições
-        if self.serpapi_count >= Config.SERPAPI_REQUESTS_LIMIT:
-            raise Exception(f"Limite de {Config.SERPAPI_REQUESTS_LIMIT} requisições atingido")
-        
-        # Construir query com operador site:
-        search_query = f"site:{site} {query}"
-        
-        # Parâmetros da busca
-        params = {
-            "q": search_query,
-            "api_key": Config.SERPAPI_KEY,
-            "num": Config.MAX_SEARCH_RESULTS,
-            "hl": "pt-br",
-            "gl": "br"
-        }
-        
-        # Fazer requisição
-        search = GoogleSearch(params)
-        results = search.get_dict()
-        
-        # Incrementar contador
-        self.serpapi_count += 1
-        
-        # Extrair resultados orgânicos
-        organic_results = results.get('organic_results', [])
-        
-        resultados = []
-        for item in organic_results[:Config.MAX_SEARCH_RESULTS]:
-            # GARANTIR que URL está completa
-            url = item.get('link', '')
-            
-            # DEBUG: Log da URL recebida
-            if url:
-                print(f"      [DEBUG] URL recebida do SerpAPI: {len(url)} chars")
-            
-            # Validação: URL deve ser completa
-            if not url or len(url) < 20:
-                continue
-            
-            # Garantir que começa com http
-            if not url.startswith('http'):
-                url = 'https://' + url
-            
-            # VERIFICAÇÃO FINAL: URL não deve ter '...'
-            if '...' in url:
-                print(f"      [ALERTA] URL truncada detectada: {url}")
-                continue
-            
-            resultados.append({
-                'title': item.get('title', ''),
-                'url': url,  # URL COMPLETA E VALIDADA
-                'snippet': item.get('snippet', '')
-            })
-        
-        return resultados
-    
-    
-    def _buscar_googlesearch(self, query, site):
-        """
-        Busca usando googlesearch-python (scraping do Google).
-        Gratuito mas pode ser bloqueado.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            list: Resultados
-        """
-        if not GOOGLESEARCH_AVAILABLE:
-            raise Exception("googlesearch-python não instalado")
-        
-        # Construir query
-        search_query = f"site:{site} {query}"
-        
-        # Fazer busca
-        try:
-            urls = list(google_search(
-                search_query,
-                num_results=Config.MAX_SEARCH_RESULTS,
-                lang='pt',
-                sleep_interval=2  # Delay para não ser bloqueado
-            ))
-            
-            # googlesearch retorna apenas URLs, precisamos buscar título/snippet
-            resultados = []
-            for url in urls:
-                # Tentar extrair título fazendo requisição à página
+            for m in methods:
                 try:
-                    response = requests.get(
-                        url,
-                        headers=Config.DEFAULT_HEADERS,
-                        timeout=5
-                    )
-                    soup = BeautifulSoup(response.content, 'lxml')
-                    
-                    # Extrair título
-                    title = ''
-                    title_tag = soup.find('title')
-                    if title_tag:
-                        title = title_tag.get_text()
-                    
-                    # Extrair snippet (primeiro parágrafo)
-                    snippet = ''
-                    p_tags = soup.find_all('p', limit=3)
-                    if p_tags:
-                        snippet = ' '.join([p.get_text()[:100] for p in p_tags])
-                    
-                    resultados.append({
-                        'title': title,
-                        'url': url,
-                        'snippet': snippet[:200]
-                    })
-                
-                except Exception as e:
-                    # Se falhar ao extrair detalhes, adicionar apenas URL
-                    resultados.append({
-                        'title': url.split('/')[-1],
-                        'url': url,
-                        'snippet': ''
-                    })
-            
-            return resultados
-        
-        except Exception as e:
-            raise Exception(f"googlesearch falhou: {e}")
-    
-    
-    def _buscar_direto(self, query, site):
+                    if m == "serpapi":
+                        res = self._search_serpapi(query, dominio)
+                    elif m == "googlesearch":
+                        res = self._search_googlesearch(query, dominio)
+                    else:
+                        res = self._search_direct(query, dominio)
+                    res = [r for r in res if r.get("url")]
+                    for r in res:
+                        if len(results) >= self.max_per_source:
+                            break
+                        # evitar duplicatas
+                        if not any(r["url"] == x["url"] for x in results):
+                            results.append(r)
+                    if results:
+                        break  # satisfação: achamos algo nesta camada
+                except Exception:
+                    # tenta próxima estratégia
+                    continue
+
+        # salvar no cache e devolver
+        cache_set(query, dominio, results)
+        # respeitar delay entre sites (para evitar rate limit)
+        time.sleep(self.delay_between)
+        return results[: self.max_per_source]
+
+    # --------------- providers ---------------
+
+    def _search_serpapi(self, query: str, dominio: str) -> List[Dict[str, Any]]:
+        key = getattr(Config, "SERPAPI_KEY", None)
+        if not SERPAPI_AVAILABLE or not key:
+            return []
+        params = {
+            "engine": "google",
+            "q": f"site:{dominio} " + query,
+            "hl": "pt-BR",
+            "num": max(5, self.max_per_source),
+            "api_key": key
+        }
+        search = GoogleSearch(params)
+        data = search.get_dict()
+        out = []
+        for item in data.get("organic_results", [])[: max(5, self.max_per_source)]:
+            title = item.get("title", "")
+            link = item.get("link", "")
+            snippet = item.get("snippet", "")
+            if link and dominio in link:
+                out.append(_norm_result(title, link, snippet))
+        return out
+
+    def _search_googlesearch(self, query: str, dominio: str) -> List[Dict[str, Any]]:
+        if not GSEARCH_AVAILABLE:
+            return []
+        # googlesearch-python já implementa paginação/UA
+        q = f"site:{dominio} {query}"
+        out = []
+        try:
+            for url in google_search(q, lang="pt", num=10, stop=10, pause=1.5):
+                if dominio not in url:
+                    continue
+                title, snippet = self._fetch_title_snippet(url)
+                out.append(_norm_result(title or url, url, snippet))
+                if len(out) >= max(5, self.max_per_source):
+                    break
+        except Exception:
+            pass
+        return out
+
+    def _search_direct(self, query: str, dominio: str) -> List[Dict[str, Any]]:
         """
-        Busca diretamente no site usando página de busca interna.
-        Faz scraping da página de resultados.
-        
-        Args:
-            query (str): Query de busca
-            site (str): Domínio do site
-            
-        Returns:
-            list: Resultados
+        Tentativa simples: se a fonte tem 'url_busca' configurado, usa.
+        Caso contrário, tenta homepage + filtro por query na âncora.
         """
-        # Encontrar configuração da fonte
-        fonte = None
+        url_busca = None
         for f in Config.TRUSTED_SOURCES:
-            if f['dominio'] == site:
-                fonte = f
+            if f.get("dominio") == dominio:
+                url_busca = f.get("url_busca")
                 break
-        
-        if not fonte or not fonte.get('url_busca'):
-            raise Exception(f"URL de busca não configurada para {site}")
-        
-        # Construir URL de busca
-        search_url = fonte['url_busca'] + query.replace(' ', '+')
-        
-        # Fazer requisição
-        headers = Config.DEFAULT_HEADERS.copy()
-        headers['User-Agent'] = random.choice(Config.USER_AGENTS)
-        
-        response = requests.get(
-            search_url,
-            headers=headers,
-            timeout=Config.SCRAPING_TIMEOUT
-        )
-        
-        response.raise_for_status()
-        
-        # Parsear HTML
-        soup = BeautifulSoup(response.content, 'lxml')
-        
-        # Estratégia genérica de extração (funciona na maioria dos sites)
-        resultados = []
-        
-        # Procurar por links que parecem ser notícias
-        # Cada site tem estrutura diferente, aqui fazemos tentativa genérica
-        for link in soup.find_all('a', href=True):
-            href = link.get('href')
-            
-            # Filtros básicos
-            if not href or href.startswith('#'):
+
+        out = []
+        session = requests.Session()
+        session.headers.update(self.headers)
+
+        try:
+            if url_busca:
+                resp = session.get(url_busca + requests.utils.quote(query), timeout=Config.REQUEST_TIMEOUT)
+                if resp.ok:
+                    out.extend(self._parse_links_from_html(resp.text, dominio))
+            else:
+                # fallback: homepage
+                resp = session.get(f"https://{dominio}", timeout=Config.REQUEST_TIMEOUT)
+                if resp.ok:
+                    out.extend(self._parse_links_from_html(resp.text, dominio))
+
+            # enriquecer com título/snippet
+            final = []
+            for r in out:
+                title, snippet = self._fetch_title_snippet(r["url"], session=session)
+                final.append(_norm_result(title or r["title"], r["url"], snippet))
+                if len(final) >= max(5, self.max_per_source):
+                    break
+            return final
+        except Exception:
+            return []
+
+    # --------------- helpers ---------------
+
+    def _fetch_title_snippet(self, url: str, session: Optional[requests.Session] = None) -> (str, str):
+        sess = session or requests.Session()
+        sess.headers.update(self.headers)
+        try:
+            r = sess.get(url, timeout=Config.REQUEST_TIMEOUT, allow_redirects=True)
+            if not r.ok:
+                return "", ""
+            soup = BeautifulSoup(r.text, "html.parser")
+            title = soup.find("title").get_text(strip=True) if soup.find("title") else url
+            ogdesc = soup.find("meta", attrs={"property": "og:description"})
+            desc = ogdesc["content"] if ogdesc and ogdesc.get("content") else ""
+            if not desc:
+                mdesc = soup.find("meta", attrs={"name": "description"})
+                desc = mdesc["content"] if mdesc and mdesc.get("content") else ""
+            return _clean_text(title), _clean_text(desc)
+        except Exception:
+            return "", ""
+
+    def _parse_links_from_html(self, html: str, dominio: str) -> List[Dict[str, Any]]:
+        soup = BeautifulSoup(html, "html.parser")
+        out = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if not href.startswith("http"):
                 continue
-            
-            # Construir URL completa se relativa
-            if href.startswith('/'):
-                href = f"https://{site}{href}"
-            
-            # Verificar se URL pertence ao site
-            if site not in href:
+            if dominio not in href:
                 continue
-            
-            # Extrair título (texto do link ou title attribute)
-            title = link.get_text().strip() or link.get('title', '')
-            
-            if not title or len(title) < 10:
-                continue
-            
-            # Tentar encontrar snippet próximo
-            snippet = ''
-            parent = link.find_parent(['div', 'article', 'li'])
-            if parent:
-                snippet = parent.get_text()[:200]
-            
-            resultados.append({
-                'title': title[:150],
-                'url': href,
-                'snippet': snippet
-            })
-            
-            # Limitar resultados
-            if len(resultados) >= Config.MAX_SEARCH_RESULTS:
+            title = a.get_text(" ", strip=True)[:120]
+            out.append(_norm_result(title or href, href, ""))
+            if len(out) >= 20:
                 break
-        
-        return resultados
+        return out
+
+    def _mock_results(self, dominio: str, query: str) -> List[Dict[str, Any]]:
+        # Gera alguns resultados simulados úteis para testes offline
+        base = f"https://{dominio}"
+        seeds = [
+            ("Matéria relacionada: " + query[:50], f"{base}/noticia-simulada-1", "Resumo simulado 1"),
+            ("Análise sobre " + query[:40], f"{base}/noticia-simulada-2", "Resumo simulado 2"),
+            ("Entrevista: " + query[:40], f"{base}/noticia-simulada-3", "Resumo simulado 3"),
+        ]
+        random.shuffle(seeds)
+        return [_norm_result(t, u, s) for (t, u, s) in seeds[: self.max_per_source]]
 
 
-# ============================================================================
-# FUNÇÃO DE CONVENIÊNCIA
-# ============================================================================
+# ============================================================
+# Funções de alto nível usadas pelo app
+# ============================================================
 
-def buscar_noticias(query):
+def buscar_noticias(query_busca: str) -> Dict[str, Any]:
     """
-    Função simplificada para buscar notícias em todas as fontes.
-    
-    Args:
-        query (str): Query de busca
-        
-    Returns:
-        dict: Resultados por fonte
-        
-    Exemplo:
-        >>> resultados = buscar_noticias("Lula reforma tributária")
-        >>> print(resultados['G1'])
-        >>> print(resultados['metadata'])
+    Realiza busca SEQUENCIAL nas fontes confiáveis e devolve
+    um dicionário por fonte + metadata consolidada.
     """
     engine = SearchEngine()
-    return engine.buscar_em_todas_fontes(query)
+    resultados: Dict[str, Any] = {}
+    total = 0
+    fontes_ok = 0
+
+    fontes = [f for f in Config.TRUSTED_SOURCES if f.get("ativo", True)]
+
+    for fonte in fontes:
+        dominio = fonte["dominio"]
+        nome = fonte["nome"]
+        res = engine.buscar(query_busca, dominio) or []
+        resultados[nome] = res
+        if res:
+            fontes_ok += 1
+            total += len(res)
+
+    resultados["metadata"] = {
+        "total_resultados": total,
+        "fontes_com_sucesso": fontes_ok,
+        "total_fontes": len(fontes),
+        "query_original": query_busca,
+        "modo_busca": getattr(Config, "SEARCH_MODE", "mock")
+    }
+    return resultados
 
 
-# ============================================================================
-# TESTE DO MÓDULO
-# ============================================================================
+# ============================================================
+# VERSÃO PARALELA (adição solicitada)
+# ============================================================
+
+def _buscar_em_fonte(fonte: Dict[str, Any], query_busca: str) -> (str, List[Dict[str, Any]]):
+    engine = SearchEngine()
+    dominio = fonte.get("dominio")
+    nome = fonte.get("nome", dominio)
+    if not dominio:
+        return nome, []
+    res = engine.buscar(query_busca, dominio) or []
+    return nome, res
+
+def buscar_noticias_paralelo(query_busca: str) -> Dict[str, Any]:
+    """
+    Busca em TODAS as fontes simultaneamente, retornando no mesmo formato
+    de buscar_noticias(), mas com 'modo_busca' indicando 'parallel/...'.
+    """
+    fontes = [f for f in Config.TRUSTED_SOURCES if f.get("ativo", True)]
+    inicio = time.time()
+    resultados: Dict[str, Any] = {}
+    total = 0
+    fontes_ok = 0
+
+    max_workers = min(5, len(fontes) or 1)
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(_buscar_em_fonte, f, query_busca): f for f in fontes}
+        for fut in as_completed(futures):
+            nome, res = fut.result()
+            resultados[nome] = res
+            if res:
+                fontes_ok += 1
+                total += len(res)
+
+    dur = time.time() - inicio
+    resultados["metadata"] = {
+        "total_resultados": total,
+        "fontes_com_sucesso": fontes_ok,
+        "total_fontes": len(fontes),
+        "query_original": query_busca,
+        "modo_busca": f"parallel/{getattr(Config, 'SEARCH_MODE', 'mock')}",
+        "duracao_s": round(dur, 2)
+    }
+    return resultados
+
+
+# ============================================================
+# CLI rápido para teste manual
+# ============================================================
 
 if __name__ == "__main__":
-    """
-    Testes do módulo searcher.
-    Execute: python modules/searcher.py
-    """
-    
-    print("=" * 70)
-    print("🧪 TESTANDO MÓDULO SEARCHER")
-    print("=" * 70)
-    print()
-    
-    # Query de teste
-    query_teste = "Lula reforma tributária Brasil"
-    
-    print(f"📝 Query de teste: {query_teste}")
-    print(f"🔧 Modo configurado: {Config.SEARCH_MODE}")
-    print()
-    
-    # Buscar
-    resultados = buscar_noticias(query_teste)
-    
-    # Mostrar resultados
-    print("\n" + "=" * 70)
-    print("✅ RESULTADOS:")
-    print("=" * 70)
-    print()
-    
-    for fonte_nome, fonte_resultados in resultados.items():
-        if fonte_nome == 'metadata':
+    q = "Lula ONU FAO Roma"
+    print("🔎 Teste de buscar_noticias()")
+    out = buscar_noticias(q)
+    print(json.dumps(out["metadata"], ensure_ascii=False, indent=2))
+    for fonte, itens in out.items():
+        if fonte == "metadata":
             continue
-        
-        print(f"📰 {fonte_nome}:")
-        if fonte_resultados:
-            for i, item in enumerate(fonte_resultados, 1):
-                print(f"  {i}. {item['title'][:60]}...")
-                print(f"     URL: {item['url']}")
-                print(f"     Snippet: {item['snippet'][:80]}...")
-                print()
-        else:
-            print("  (sem resultados)")
-            print()
-    
-    # Metadata
-    meta = resultados['metadata']
-    print("📊 ESTATÍSTICAS:")
-    print(f"  Total de resultados: {meta['total_resultados']}")
-    print(f"  Fontes com sucesso: {meta['fontes_com_sucesso']}/{meta['total_fontes']}")
-    print(f"  Modo usado: {meta['modo_busca']}")
+        print(f"\n== {fonte} ==")
+        for it in itens:
+            print("-", it["title"], "|", it["url"])
+
+    print("\n🔎 Teste de buscar_noticias_paralelo()")
+    outp = buscar_noticias_paralelo(q)
+    print(json.dumps(outp["metadata"], ensure_ascii=False, indent=2))

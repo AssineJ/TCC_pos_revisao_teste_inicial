@@ -1,12 +1,6 @@
 import VeracityGauge from './VeracityGauge.jsx';
 import LoadingIndicator from './LoadingIndicator.jsx';
 
-const LOADING_TIP = [
-  'Buscando fontes confiáveis e comparando dados... ',
-  'Checando indicadores de clickbait e linguagem tendenciosa... ',
-  'Avaliando reputação das fontes e divergências factuais... '
-];
-
 const STATUS_COPY = {
   idle: {
     title: 'Pronto para começar',
@@ -14,7 +8,7 @@ const STATUS_COPY = {
   },
   error: {
     title: 'Não foi possível concluir a análise',
-    description: 'Verifique os dados informados ou tente novamente em alguns instantes.'
+    description: 'A análise pode ter excedido o tempo limite de 4 minutos ou houve um erro. Tente com um texto mais curto ou URL diferente.'
   }
 };
 
@@ -22,7 +16,7 @@ export default function VerificationResult({ status, result }) {
   if (status === 'loading') {
     return (
       <section className="card card--glass">
-        <LoadingIndicator message={LOADING_TIP[Math.floor(Math.random() * LOADING_TIP.length)]} />
+        <LoadingIndicator />
       </section>
     );
   }
@@ -37,11 +31,14 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
+  // ✅ CORREÇÃO: Acessa os campos corretos do objeto result
   const {
-    veracity_score: score,
+    veracity_score,
     summary,
     signals,
-    related_sources: sources
+    related_sources,
+    confidence_level,
+    main_source
   } = result;
 
   return (
@@ -49,13 +46,26 @@ export default function VerificationResult({ status, result }) {
       <header className="result__header">
         <div>
           <span className="result__label">Percentual de veracidade</span>
-          <h2>{Math.round(score)}%</h2>
+          <h2>{Math.round(veracity_score)}%</h2>
+          {main_source && (
+            <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '0.5rem' }}>
+              {main_source}
+            </p>
+          )}
         </div>
-        <VeracityGauge score={score} />
+        <VeracityGauge score={veracity_score} />
       </header>
 
       <div className="result__content">
-        <p className="result__summary">{summary ?? 'O backend não enviou um resumo para esta análise.'}</p>
+        <p className="result__summary">
+          {summary || 'O backend não enviou um resumo para esta análise.'}
+        </p>
+
+        {confidence_level && (
+          <p style={{ color: '#475569', fontSize: '0.95rem', marginTop: '0.5rem' }}>
+            <strong>Nível de confiança:</strong> {confidence_level}
+          </p>
+        )}
 
         {Array.isArray(signals) && signals.length > 0 && (
           <ul className="result__signals">
@@ -65,18 +75,34 @@ export default function VerificationResult({ status, result }) {
           </ul>
         )}
 
-        {Array.isArray(sources) && sources.length > 0 && (
+        {/* ✅ CORREÇÃO: Agora mostra as fontes corretamente */}
+        {Array.isArray(related_sources) && related_sources.length > 0 && (
           <div className="result__sources">
-            <h3>Fontes consultadas</h3>
+            <h3>Fontes consultadas ({related_sources.length})</h3>
             <ul>
-              {sources.map((source, index) => (
+              {related_sources.map((source, index) => (
                 <li key={index}>
                   {source.url ? (
-                    <a href={source.url} target="_blank" rel="noopener noreferrer">
-                      {source.name ?? source.url}
+                    <a 
+                      href={source.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      title={source.title || source.name}
+                    >
+                      <strong>{source.name}</strong>
+                      {source.similarity > 0 && (
+                        <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                          ({Math.round(source.similarity * 100)}% similaridade)
+                        </span>
+                      )}
                     </a>
                   ) : (
-                    source.name ?? 'Fonte não especificada'
+                    <span>{source.name || 'Fonte não especificada'}</span>
+                  )}
+                  {source.title && source.title !== source.name && (
+                    <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
+                      {source.title}
+                    </div>
                   )}
                 </li>
               ))}

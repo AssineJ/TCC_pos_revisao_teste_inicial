@@ -20,6 +20,9 @@ export default function useNewsVerification() {
     try {
       const response = await verifyNewsRequest(type, payload);
 
+      // ✅ LOG: Mostra o que foi recebido
+      console.log('✅ Resposta processada:', response);
+
       // ✅ CORREÇÃO: Mantém a estrutura exata retornada pela API
       setResult({
         veracity_score: response.veracity_score,
@@ -37,6 +40,29 @@ export default function useNewsVerification() {
       lastRequestRef.current = new Date();
     } catch (error) {
       console.error('Erro ao verificar notícia:', error);
+      
+      // ✅ Detectar se foi timeout
+      const isTimeout = error.name === 'AbortError' || error.message.includes('aborted');
+      
+      // ✅ CORREÇÃO: Define um result de erro para mostrar mensagem adequada
+      setResult({
+        veracity_score: 0,
+        summary: isTimeout 
+          ? '⏱️ A análise excedeu o tempo limite de 4 minutos. Isso pode ocorrer com textos muito longos ou quando há muitas fontes para consultar. Tente novamente com um texto mais curto.'
+          : 'Não foi possível concluir a análise. ' + (error.message || 'Erro desconhecido. Verifique se o backend está rodando em http://127.0.0.1:5000'),
+        related_sources: [],
+        signals: [
+          isTimeout 
+            ? 'Timeout: A análise demorou mais de 4 minutos'
+            : 'Erro durante a verificação: ' + error.message
+        ],
+        confidence_level: 'Baixo',
+        main_source: '',
+        metadata: {},
+        nlp: {},
+        semantic: {}
+      });
+      
       setStatus(STATUS.error);
     }
   }, []);
