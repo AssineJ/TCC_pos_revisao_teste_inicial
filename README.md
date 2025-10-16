@@ -175,9 +175,11 @@ PY
      Crie (ou edite) um arquivo `.env` na pasta do projeto.
 	 
      # Flask
+     ```
      FLASK_ENV=development
      HOST=0.0.0.0
      PORT=5000
+     ```
 
      # Busca (SerpAPI)
      SEARCH_MODE=serpapi
