@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 
 const LOADING_STAGES = [
-  { time: 0, message: 'Extraindo conteúdo e processando com IA...', emoji: '🤖' },
-  { time: 30, message: 'Buscando em múltiplas fontes confiáveis...', emoji: '🔍' },
-  { time: 60, message: 'Analisando similaridade semântica...', emoji: '🔬' },
-  { time: 90, message: 'Detectando contradições e padrões...', emoji: '🧪' },
-  { time: 120, message: 'Calculando veracidade final...', emoji: '🎯' },
-  { time: 150, message: 'Finalizando análise detalhada...', emoji: '✨' },
-  { time: 180, message: 'Aguarde, processamento complexo em andamento...', emoji: '⏳' }
+  { time: 0, message: 'Extraindo conteúdo e processando com IA...' },
+  { time: 30, message: 'Buscando em múltiplas fontes confiáveis...' },
+  { time: 60, message: 'Analisando similaridade semântica...' },
+  { time: 90, message: 'Detectando contradições e padrões...' },
+  { time: 120, message: 'Calculando veracidade final...' },
+  { time: 150, message: 'Finalizando análise detalhada...'},
+  { time: 180, message: 'Aguarde, processamento complexo em andamento...' }
 ];
 
 export default function LoadingIndicator() {

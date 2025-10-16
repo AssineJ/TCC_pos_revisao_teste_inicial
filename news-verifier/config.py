@@ -1,17 +1,3 @@
-"""
-config.py - Configurações Centralizadas do Sistema
-
-Este arquivo contém todas as configurações do projeto:
-- Fontes confiáveis de notícias
-- Timeouts e limites
-- URLs de APIs
-- Modelos de IA
-- Mensagens de erro padrão
-
-Autor: Projeto Acadêmico
-Data: 2025
-"""
-
 import os
 from dotenv import load_dotenv
 

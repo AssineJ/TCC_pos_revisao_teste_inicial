@@ -1,115 +1,183 @@
+import { useState } from 'react';
 import VeracityGauge from './VeracityGauge.jsx';
 import LoadingIndicator from './LoadingIndicator.jsx';
 
 const STATUS_COPY = {
   idle: {
-    title: 'Pronto para começar',
-    description: 'Aguardando uma notícia para validar. Insira a URL ou texto e clique em Verificar.'
+    title: 'O resultado aparecerá aqui após a verificação.',
+    description: ''
   },
   error: {
     title: 'Não foi possível concluir a análise',
-    description: 'A análise pode ter excedido o tempo limite de 4 minutos ou houve um erro. Tente com um texto mais curto ou URL diferente.'
+    description: 'A análise pode ter excedido o tempo limite ou houve um erro. Tente novamente.'
   }
 };
 
+// Logos dos portais (base64 ou URL)
+const PORTAL_LOGOS = {
+  'G1': '🌐',
+  'Folha de S.Paulo': '📰',
+  'UOL Notícias': '📱',
+  'IstoÉ': '📄',
+  'Estadão': '📰'
+};
+
+function SourceModal({ source, onClose }) {
+  if (!source) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Fechar">
+          ✕
+        </button>
+        
+        <div className="modal-header">
+          <div className="modal-logo">
+            {PORTAL_LOGOS[source.name] || '🌐'}
+          </div>
+          <div>
+            <h3>{source.name}</h3>
+            <p className="modal-similarity">
+              Similaridade {Math.round(source.similarity * 100)}%
+            </p>
+          </div>
+        </div>
+
+        <div className="modal-body">
+          <div className="modal-field">
+            <label>Título</label>
+            <p>{source.title || 'Sem título disponível'}</p>
+          </div>
+
+          <div className="modal-field">
+            <label>URL</label>
+            <a 
+              href={source.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="modal-url"
+            >
+              {source.url}
+            </a>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="modal-button" onClick={onClose}>
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function VerificationResult({ status, result }) {
+  const [selectedSource, setSelectedSource] = useState(null);
+
   if (status === 'loading') {
     return (
-      <section className="card card--glass">
+      <div className="card card--glass">
         <LoadingIndicator />
-      </section>
+      </div>
     );
   }
 
   if (!result) {
     const { title, description } = STATUS_COPY[status] ?? STATUS_COPY.idle;
     return (
-      <section className="card card--glass empty">
-        <h3>{title}</h3>
-        <p>{description}</p>
-      </section>
+      <div className="card card--glass empty">
+        <div>
+          <h3>{title}</h3>
+          {description && <p>{description}</p>}
+        </div>
+      </div>
     );
   }
 
-  // ✅ CORREÇÃO: Acessa os campos corretos do objeto result
   const {
     veracity_score,
     summary,
     signals,
     related_sources,
-    confidence_level,
-    main_source
+    confidence_level
   } = result;
 
+  // Determinar nível baseado no score
+  const getConfidenceLevel = (score) => {
+    if (score >= 70) return 'alto';
+    if (score >= 40) return 'medio';
+    return 'baixo';
+  };
+
+  const nivel = getConfidenceLevel(veracity_score);
+
   return (
-    <section className="card card--result">
-      <header className="result__header">
-        <div>
-          <span className="result__label">Percentual de veracidade</span>
-          <h2>{Math.round(veracity_score)}%</h2>
-          {main_source && (
-            <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '0.5rem' }}>
-              {main_source}
-            </p>
-          )}
-        </div>
-        <VeracityGauge score={veracity_score} />
-      </header>
+    <>
+      <div className="card card--result">
+        <div className="result__content">
+          {/* Título */}
+          <div className="result__label">PERCENTUAL DE VERACIDADE</div>
+          
+          {/* Porcentagem grande + Gauge */}
+          <div className="result__score-section">
+            <h2 className="result__score">{Math.round(veracity_score)}%</h2>
+            <VeracityGauge score={veracity_score} nivel={nivel} />
+          </div>
 
-      <div className="result__content">
-        <p className="result__summary">
-          {summary || 'O backend não enviou um resumo para esta análise.'}
-        </p>
-
-        {confidence_level && (
-          <p style={{ color: '#475569', fontSize: '0.95rem', marginTop: '0.5rem' }}>
-            <strong>Nível de confiança:</strong> {confidence_level}
+          {/* Justificativa */}
+          <p className="result__summary">
+            {summary || 'Análise concluída.'}
           </p>
-        )}
 
-        {Array.isArray(signals) && signals.length > 0 && (
-          <ul className="result__signals">
-            {signals.map((signal, index) => (
-              <li key={index}>{signal}</li>
-            ))}
-          </ul>
-        )}
-
-        {/* ✅ CORREÇÃO: Agora mostra as fontes corretamente */}
-        {Array.isArray(related_sources) && related_sources.length > 0 && (
-          <div className="result__sources">
-            <h3>Fontes consultadas ({related_sources.length})</h3>
-            <ul>
-              {related_sources.map((source, index) => (
-                <li key={index}>
-                  {source.url ? (
-                    <a 
-                      href={source.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      title={source.title || source.name}
-                    >
-                      <strong>{source.name}</strong>
-                      {source.similarity > 0 && (
-                        <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
-                          ({Math.round(source.similarity * 100)}% similaridade)
-                        </span>
-                      )}
-                    </a>
-                  ) : (
-                    <span>{source.name || 'Fonte não especificada'}</span>
-                  )}
-                  {source.title && source.title !== source.name && (
-                    <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-                      {source.title}
-                    </div>
-                  )}
-                </li>
+          {/* Sinais/Signals */}
+          {Array.isArray(signals) && signals.length > 0 && (
+            <ul className="result__signals">
+              {signals.map((signal, index) => (
+                <li key={index}>{signal}</li>
               ))}
             </ul>
+          )}
+
+          {/* Fontes consultadas */}
+          {Array.isArray(related_sources) && related_sources.length > 0 && (
+            <div className="result__sources">
+              <h3>Fontes consultadas</h3>
+              <div className="sources-grid">
+                {related_sources.slice(0, 6).map((source, index) => (
+                  <button
+                    key={index}
+                    className="source-card"
+                    onClick={() => setSelectedSource(source)}
+                  >
+                    <div className="source-logo">
+                      {PORTAL_LOGOS[source.name] || '🌐'}
+                    </div>
+                    <div className="source-name">{source.name}</div>
+                    <div className="source-similarity">
+                      {Math.round(source.similarity * 100)}%
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nível de confiança */}
+          <div className={`confidence-badge confidence-badge--${nivel}`}>
+            Nível de confiança: <strong>{confidence_level || nivel.toUpperCase()}</strong>
           </div>
-        )}
+        </div>
       </div>
-    </section>
+
+      {/* Modal */}
+      {selectedSource && (
+        <SourceModal 
+          source={selectedSource} 
+          onClose={() => setSelectedSource(null)} 
+        />
+      )}
+    </>
   );
 }
