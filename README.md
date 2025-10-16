@@ -58,6 +58,25 @@ news-verifier/
 ```
 
 ## Configuração do ambiente
+## Requisitos mínimos
+Os requisitos abaixo garantem uma experiência fluida para desenvolvimento local e execução das análises de veracidade:
+
+### Backend
+- **Sistema operacional**: Linux, macOS ou Windows 10/11 (com WSL recomendado).
+- **Python**: versão 3.10 ou superior.
+- **Processador**: CPU moderna com suporte a instruções AVX (necessário para alguns modelos de embeddings).
+- **Memória RAM**: mínimo 8 GB (recomendado 12 GB para processamento de múltiplas fontes).
+- **Armazenamento**: pelo menos 5 GB livres para dependências Python, caches e modelos spaCy/sentence-transformers.
+
+### Frontend
+- **Node.js**: versão 18 LTS ou superior.
+- **Memória RAM**: mínimo 4 GB para rodar o servidor de desenvolvimento do Vite sem travamentos.
+- **Navegador**: versão recente do Chrome, Firefox ou Edge com suporte a ES2020.
+
+### Dependências externas
+- **Conexão com a internet** para baixar modelos de NLP e consultar fontes reais.
+- **Chave SerpAPI** (opcional) para habilitar buscas no Google; sem a chave, utilize modo mock ou fontes locais.
+
 ### Backend (Flask)
 1. Crie e ative um ambiente virtual Python 3.10+.
    ```bash
