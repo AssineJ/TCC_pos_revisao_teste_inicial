@@ -154,6 +154,26 @@ export default function VerificationResult({ status, result }) {
                 </div>
               )}
             </div>
+            <h2>Dados insuficientes para validação</h2>
+            <p>{result.summary}</p>
+
+            {hasQualityScore && (
+              <span className="result__alert-score">
+                Nível de qualidade identificado: {(qualityScore * 100).toFixed(0)}%
+              </span>
+            )}
+
+            {issues.length > 0 && (
+              <ul className="result__alert-list">
+                {issues.map((issue, index) => (
+                  <li key={index}>{issue}</li>
+                ))}
+              </ul>
+            )}
+
+            <p className="result__alert-help">
+              Forneça um texto com contexto suficiente, evitando repetições ou palavras desconexas, e tente novamente.
+            </p>
           </div>
         </div>
       </div>
@@ -168,7 +188,6 @@ export default function VerificationResult({ status, result }) {
     confidence_level
   } = result;
 
-  // Determinar nível baseado no score
   const getConfidenceLevel = (score) => {
     if (score >= 70) return 'alto';
     if (score >= 40) return 'medio';
@@ -181,21 +200,17 @@ export default function VerificationResult({ status, result }) {
     <>
       <div className="card card--result">
         <div className="result__content">
-          {/* Título */}
           <div className="result__label">PERCENTUAL DE VERACIDADE</div>
           
-          {/* Porcentagem grande + Gauge */}
           <div className="result__score-section">
             <h2 className="result__score">{Math.round(veracity_score)}%</h2>
             <VeracityGauge score={veracity_score} nivel={nivel} />
           </div>
 
-          {/* Justificativa */}
           <p className="result__summary">
             {summary || 'Análise concluída.'}
           </p>
 
-          {/* Sinais/Signals */}
           {Array.isArray(signals) && signals.length > 0 && (
             <ul className="result__signals">
               {signals.map((signal, index) => (
@@ -204,7 +219,6 @@ export default function VerificationResult({ status, result }) {
             </ul>
           )}
 
-          {/* Fontes consultadas */}
           {Array.isArray(related_sources) && related_sources.length > 0 && (
             <div className="result__sources">
               <h3>Fontes consultadas</h3>
@@ -228,7 +242,6 @@ export default function VerificationResult({ status, result }) {
             </div>
           )}
 
-          {/* Nível de confiança */}
           <div className={`confidence-badge confidence-badge--${nivel}`}>
             Nível de confiança: <strong>{confidence_level || nivel.toUpperCase()}</strong>
           </div>
