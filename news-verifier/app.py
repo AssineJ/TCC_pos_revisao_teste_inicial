@@ -17,7 +17,9 @@ from modules.scraper import scrape_noticias_paralelo as scrape_noticias
 from modules.searcher import buscar_noticias
 from modules.semantic_analyzer import analisar_semantica
 from modules.text_validator import validar_qualidade_texto
-
+from modules.scorer import calcular_veracidade
+from modules.text_validator import validar_qualidade_texto
+import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
 # Criar instância do Flask
