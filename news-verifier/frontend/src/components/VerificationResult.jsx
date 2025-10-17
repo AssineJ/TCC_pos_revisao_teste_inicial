@@ -154,26 +154,6 @@ export default function VerificationResult({ status, result }) {
                 </div>
               )}
             </div>
-            <h2>Dados insuficientes para validação</h2>
-            <p>{result.summary}</p>
-
-            {hasQualityScore && (
-              <span className="result__alert-score">
-                Nível de qualidade identificado: {(qualityScore * 100).toFixed(0)}%
-              </span>
-            )}
-
-            {issues.length > 0 && (
-              <ul className="result__alert-list">
-                {issues.map((issue, index) => (
-                  <li key={index}>{issue}</li>
-                ))}
-              </ul>
-            )}
-
-            <p className="result__alert-help">
-              Forneça um texto com contexto suficiente, evitando repetições ou palavras desconexas, e tente novamente.
-            </p>
           </div>
         </div>
       </div>

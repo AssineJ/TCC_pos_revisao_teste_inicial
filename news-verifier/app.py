@@ -1,21 +1,25 @@
 import builtins
 import logging
 import os
+import re
+import sys
 from logging.handlers import RotatingFileHandler
+from urllib.parse import urlparse
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import Config
 from modules.extractor import extrair_conteudo
-from modules.nlp_processor import processar_texto
-from modules.searcher import buscar_noticias
 from modules.filters import filtrar_busca, filtrar_scraping
+from modules.nlp_processor import processar_texto
+from modules.scorer import calcular_veracidade
 from modules.scraper import scrape_noticias_paralelo as scrape_noticias
+from modules.searcher import buscar_noticias
 from modules.semantic_analyzer import analisar_semantica
+from modules.text_validator import validar_qualidade_texto
 from modules.scorer import calcular_veracidade
 from modules.text_validator import validar_qualidade_texto
 import sys
-
 sys.stdout.reconfigure(encoding='utf-8')
 
 # Criar instância do Flask
@@ -81,32 +85,63 @@ def verificar_noticia():
         tipo = dados['tipo']
         conteudo = dados['conteudo']
 
+        if not isinstance(conteudo, str):
+            return jsonify({
+                "erro": Config.ERROR_MESSAGES['INVALID_CONTENT_TYPE'],
+                "codigo": "INVALID_CONTENT_TYPE"
+            }), 400
+
+        conteudo = conteudo.strip()
+
         if tipo not in ['url', 'texto']:
             return jsonify({
                 "erro": "Tipo deve ser 'url' ou 'texto'",
                 "codigo": "INVALID_TYPE"
             }), 400
 
-        if not conteudo or not conteudo.strip():
+        if not conteudo:
             return jsonify({
                 "erro": "Conteúdo não pode estar vazio",
                 "codigo": "EMPTY_CONTENT"
             }), 400
 
-        if len(conteudo.strip()) < Config.MIN_CONTENT_LENGTH:
+        if len(conteudo) < Config.MIN_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_SHORT'],
                 "codigo": "CONTENT_TOO_SHORT"
             }), 422
 
-        if len(conteudo.strip()) > Config.MAX_CONTENT_LENGTH:
+        if tipo == 'texto' and len(conteudo) > Config.MAX_TEXT_INPUT_LENGTH:
+            return jsonify({
+                "erro": Config.ERROR_MESSAGES['TEXT_TOO_LONG'],
+                "codigo": "TEXT_TOO_LONG"
+            }), 422
+
+        if len(conteudo) > Config.MAX_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_LONG'],
                 "codigo": "CONTENT_TOO_LONG"
             }), 422
 
+        if tipo == 'url':
+            url_matches = re.findall(r'https?://[^\s]+', conteudo, flags=re.IGNORECASE)
+
+            if len(url_matches) != 1 or url_matches[0] != conteudo:
+                return jsonify({
+                    "erro": Config.ERROR_MESSAGES['MULTIPLE_URLS'],
+                    "codigo": "MULTIPLE_URLS"
+                }), 422
+
+            parsed = urlparse(conteudo)
+            scheme = parsed.scheme.lower() if parsed.scheme else ''
+            if scheme not in ('http', 'https') or not parsed.netloc:
+                return jsonify({
+                    "erro": Config.ERROR_MESSAGES['INVALID_URL'],
+                    "codigo": "INVALID_URL"
+                }), 422
+
         log_info(
-            f"📨 Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo.strip())}"
+            f"📨 Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo)}"
         )
 
         # ETAPA 2: EXTRAIR CONTEÚDO (se for URL)
