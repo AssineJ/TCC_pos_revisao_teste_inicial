@@ -13,6 +13,7 @@ from modules.filters import filtrar_busca, filtrar_scraping
 from modules.scraper import scrape_noticias_paralelo as scrape_noticias
 from modules.semantic_analyzer import analisar_semantica
 from modules.scorer import calcular_veracidade
+from modules.text_validator import validar_qualidade_texto
 import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -131,6 +132,18 @@ def verificar_noticia():
         else:
             texto_para_analise = conteudo
             titulo_noticia = texto_para_analise[:100] + "..."
+
+        # ETAPA 2.5: VALIDAR QUALIDADE DO TEXTO BASE
+        avaliacao_texto = validar_qualidade_texto(texto_para_analise)
+
+        if not avaliacao_texto['valido']:
+            log_info("⚠️ Texto com baixa qualidade identificado. Interrompendo análise.")
+            return jsonify({
+                "erro": "Dados fornecidos insuficientes para uma validação confiável.",
+                "mensagem_usuario": "Dados fornecidos insuficientes para uma validação. Revise o texto e tente novamente.",
+                "codigo": "LOW_TEXT_QUALITY",
+                "detalhes": avaliacao_texto
+            }), 422
 
         # ETAPA 3: PROCESSAR COM NLP (IA!)
         log_info(f"🤖 Processando texto com IA...")
