@@ -14,11 +14,28 @@ const STATUS_COPY = {
 };
 
 export const PORTAL_LOGOS = {
-  'G1': '/assets/g1-logo.png',
-  'Folha de S.Paulo': '/assets/logo-folha.png',
-  'UOL Notícias': '/assets/uol-logo.jpg',
-  'IstoÉ': '/assets/istoe-logo.jpeg',
-  'Estadão': '/assets/estadao-logo.png'
+  'G1': { src: '/assets/g1-logo.png', alt: 'G1' },
+  'Folha de S.Paulo': { src: '/assets/logo-folha.png', alt: 'Folha de S.Paulo' },
+  'UOL Notícias': { src: '/assets/uol-logo.jpg', alt: 'UOL Notícias' },
+  'IstoÉ': { src: '/assets/istoe-logo.jpeg', alt: 'IstoÉ' },
+  'Estadão': { src: '/assets/estadao-logo.png', alt: 'Estadão' }
+};
+
+const renderPortalLogo = (name) => {
+  const logo = PORTAL_LOGOS[name];
+
+  if (!logo) {
+    return '🌐';
+  }
+
+  return (
+    <img
+      src={logo.src}
+      alt={logo.alt || name}
+      className="portal-logo-image"
+      loading="lazy"
+    />
+  );
 };
 
 function SourceModal({ source, onClose }) {
@@ -33,7 +50,7 @@ function SourceModal({ source, onClose }) {
         
         <div className="modal-header">
           <div className="modal-logo">
-            {PORTAL_LOGOS[source.name] || '🌐'}
+            {renderPortalLogo(source.name)}
           </div>
           <div>
             <h3>{source.name}</h3>
@@ -151,7 +168,7 @@ export default function VerificationResult({ status, result }) {
                     onClick={() => setSelectedSource(source)}
                   >
                     <div className="source-logo">
-                      {PORTAL_LOGOS[source.name] || '🌐'}
+                      {renderPortalLogo(source.name)}
                     </div>
                     <div className="source-name">{source.name}</div>
                     <div className="source-similarity">
