@@ -112,6 +112,45 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
+  const isLowQualityError = result?.error_code === 'LOW_TEXT_QUALITY';
+
+  if (isLowQualityError) {
+    const issues = Array.isArray(result.signals) ? result.signals : [];
+    const qualityScore = result.quality_validation?.score_qualidade;
+    const hasQualityScore = typeof qualityScore === 'number';
+
+    return (
+      <div className="card card--result">
+        <div className="result__content">
+          <div className="result__label">RESULTADO DA ANÁLISE</div>
+
+          <div className="result__alert result__alert--error">
+            <h2>Dados insuficientes para validação</h2>
+            <p>{result.summary}</p>
+
+            {hasQualityScore && (
+              <span className="result__alert-score">
+                Nível de qualidade identificado: {(qualityScore * 100).toFixed(0)}%
+              </span>
+            )}
+
+            {issues.length > 0 && (
+              <ul className="result__alert-list">
+                {issues.map((issue, index) => (
+                  <li key={index}>{issue}</li>
+                ))}
+              </ul>
+            )}
+
+            <p className="result__alert-help">
+              Forneça um texto com contexto suficiente, evitando repetições ou palavras desconexas, e tente novamente.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const {
     veracity_score,
     summary,

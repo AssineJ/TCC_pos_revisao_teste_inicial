@@ -40,14 +40,45 @@ export default function useNewsVerification() {
       lastRequestRef.current = new Date();
     } catch (error) {
       console.error('Erro ao verificar notícia:', error);
-      
+
       // ✅ Detectar se foi timeout
       const isTimeout = error.name === 'AbortError' || error.message.includes('aborted');
-      
+
+      const isLowQuality = error.code === 'LOW_TEXT_QUALITY';
+
+      if (isLowQuality) {
+        const problemas = error.details?.problemas ?? [];
+        setResult({
+          veracity_score: 0,
+          summary:
+            error.message ||
+            'Dados fornecidos insuficientes para uma validação. Revise o texto e tente novamente.',
+          related_sources: [],
+          signals: problemas.length > 0
+            ? problemas
+            : ['O texto fornecido não possui contexto suficiente para ser analisado.'],
+          confidence_level: 'Indisponível',
+          main_source: '',
+          metadata: {
+            quality_check: {
+              valido: false,
+              score: error.details?.score_qualidade ?? null
+            }
+          },
+          nlp: {},
+          semantic: {},
+          error_code: error.code,
+          quality_validation: error.details || null
+        });
+
+        setStatus(STATUS.error);
+        return;
+      }
+
       // ✅ CORREÇÃO: Define um result de erro para mostrar mensagem adequada
       setResult({
         veracity_score: 0,
-        summary: isTimeout 
+        summary: isTimeout
           ? '⏱️ A análise excedeu o tempo limite de 4 minutos. Isso pode ocorrer com textos muito longos ou quando há muitas fontes para consultar. Tente novamente com um texto mais curto.'
           : 'Não foi possível concluir a análise. ' + (error.message || 'Erro desconhecido. Verifique se o backend está rodando em http://127.0.0.1:5000'),
         related_sources: [],
