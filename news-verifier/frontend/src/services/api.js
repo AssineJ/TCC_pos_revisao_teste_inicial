@@ -92,8 +92,7 @@ export async function verifyNewsRequest(type, payload) {
       title: fonte.titulo || '',
       similarity: fonte.similaridade || 0,
       status: fonte.status || '',
-      publishedAt: fonte.data_publicacao || null,
-      publishedYear: fonte.ano_publicacao || null
+      publishedAt: fonte.data_publicacao || null
     }));
 
     return {

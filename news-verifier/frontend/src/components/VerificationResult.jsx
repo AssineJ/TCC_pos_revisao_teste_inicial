@@ -38,23 +38,6 @@ const renderPortalLogo = (name) => {
   );
 };
 
-const extractSourceYear = (source) => {
-  if (!source) {
-    return null;
-  }
-
-  if (source.publishedYear) {
-    return source.publishedYear;
-  }
-
-  if (!source.publishedAt) {
-    return null;
-  }
-
-  const match = String(source.publishedAt).match(/\d{4}/);
-  return match ? match[0] : null;
-};
-
 function SourceModal({ source, onClose }) {
   if (!source) return null;
 

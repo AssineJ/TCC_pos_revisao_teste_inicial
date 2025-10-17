@@ -18,18 +18,6 @@ from modules.searcher import buscar_noticias
 from modules.semantic_analyzer import analisar_semantica
 from modules.text_validator import validar_qualidade_texto
 
-
-def extrair_ano(data_valor):
-    """Extrai um ano (YYYY) de uma string ou retorna None se não for possível."""
-    if not data_valor:
-        return None
-
-    correspondencia = re.search(r"(19|20|21)\d{2}", str(data_valor))
-    if correspondencia:
-        return correspondencia.group(0)
-
-    return None
-
 sys.stdout.reconfigure(encoding='utf-8')
 
 # Criar instância do Flask
@@ -299,8 +287,7 @@ def verificar_noticia():
                         "motivo": analise.get('motivo', ''),
                         "contradiz": analise.get('contradiz', False),  # ✅ NOVO
                         "confianca_contradicao": analise.get('confianca_contradicao', 0.0),  # ✅ NOVO
-                        "data_publicacao": data_publicacao,
-                        "ano_publicacao": extrair_ano(data_publicacao)
+                        "data_publicacao": data_publicacao
                     })
 
         fontes_consultadas.sort(key=lambda x: x['similaridade'], reverse=True)
