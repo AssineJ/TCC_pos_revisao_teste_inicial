@@ -214,6 +214,7 @@ export default function VerificationResult({ status, result }) {
                   <button
                     key={index}
                     className="source-card"
+                    type="button"
                     onClick={() => setSelectedSource(source)}
                   >
                     <div className="source-logo">
