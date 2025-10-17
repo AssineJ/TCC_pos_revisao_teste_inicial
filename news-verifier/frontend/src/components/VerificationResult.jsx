@@ -38,8 +38,27 @@ const renderPortalLogo = (name) => {
   );
 };
 
+const extractSourceYear = (source) => {
+  if (!source) {
+    return null;
+  }
+
+  if (source.publishedYear) {
+    return source.publishedYear;
+  }
+
+  if (!source.publishedAt) {
+    return null;
+  }
+
+  const match = String(source.publishedAt).match(/\d{4}/);
+  return match ? match[0] : null;
+};
+
 function SourceModal({ source, onClose }) {
   if (!source) return null;
+
+  const publishedYear = extractSourceYear(source);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -67,9 +86,14 @@ function SourceModal({ source, onClose }) {
           </div>
 
           <div className="modal-field">
+            <label>Ano da notícia</label>
+            <p>{publishedYear || 'Não disponível'}</p>
+          </div>
+
+          <div className="modal-field">
             <label>URL</label>
-            <a 
-              href={source.url} 
+            <a
+              href={source.url}
               target="_blank" 
               rel="noopener noreferrer"
               className="modal-url"

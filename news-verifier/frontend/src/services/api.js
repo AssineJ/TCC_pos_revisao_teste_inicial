@@ -91,7 +91,9 @@ export async function verifyNewsRequest(type, payload) {
       url: fonte.url || '',
       title: fonte.titulo || '',
       similarity: fonte.similaridade || 0,
-      status: fonte.status || ''
+      status: fonte.status || '',
+      publishedAt: fonte.data_publicacao || null,
+      publishedYear: fonte.ano_publicacao || null
     }));
 
     return {
