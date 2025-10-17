@@ -14,6 +14,7 @@ Autor: Projeto Acadêmico
 Data: 2025
 """
 
+import json
 import requests
 from newspaper import Article
 from bs4 import BeautifulSoup
@@ -172,7 +173,7 @@ class ContentExtractor:
                 
                 data = article.publish_date.strftime('%Y-%m-%d') if article.publish_date else None
                 autor = article.authors[0] if article.authors else None
-                
+
                 return {
                     'url': url, 'titulo': titulo.strip(), 'texto': texto.strip(),
                     'data_publicacao': data, 'autor': autor,
@@ -191,24 +192,28 @@ class ContentExtractor:
             content = trafilatura.extract(html, include_comments=False, include_formatting=False, favor_recall=True, url=url)
             titulo = metadata.title if metadata and hasattr(metadata, 'title') else ""
             texto = content or ""
-            
+
             if not texto or len(texto.split()) < 20:
                 raise Exception("Texto insuficiente")
-            
+
+            data_publicacao = None
+            if metadata:
+                data_publicacao = getattr(metadata, 'date', None) or getattr(metadata, 'publication_date', None)
+
             return {
                 'url': url, 'titulo': (titulo or "").strip(), 'texto': texto.strip(),
-                'data_publicacao': None, 'autor': None,
+                'data_publicacao': data_publicacao, 'autor': None,
                 'metodo_extracao': 'trafilatura', 'sucesso': True, 'erro': None
             }
         except Exception as e:
             return self._resultado_erro(url, f'trafilatura: {e}', 'trafilatura')
-    
+
     def _extrair_amp(self, html, url):
         """Extração de versão AMP."""
         try:
             soup = BeautifulSoup(html, 'lxml')
             amp_link = soup.find('link', rel=lambda x: x and 'amphtml' in str(x).lower())
-            
+
             if amp_link and amp_link.get('href'):
                 amp_url = amp_link['href']
                 if amp_url.startswith('/'):
@@ -232,24 +237,27 @@ class ContentExtractor:
             summary_html = doc.summary(html_partial=True)
             soup = BeautifulSoup(summary_html, 'lxml')
             texto = soup.get_text("\n").strip()
-            
+
             if not texto or len(texto.split()) < 20:
                 raise Exception("Texto insuficiente")
-            
+
+            soup_meta = BeautifulSoup(html, 'lxml')
+            data_publicacao = self._extrair_data_publicacao(soup_meta)
+
             return {
                 'url': url, 'titulo': titulo, 'texto': texto,
-                'data_publicacao': None, 'autor': None,
+                'data_publicacao': data_publicacao, 'autor': None,
                 'metodo_extracao': 'readability', 'sucesso': True, 'erro': None
             }
         except Exception as e:
             return self._resultado_erro(url, f'readability: {e}', 'readability')
-    
+
     def _extrair_globo(self, html, url):
         """Extrator específico para Globo."""
         try:
             soup = BeautifulSoup(html, 'lxml')
             titulo = soup.find('h1').get_text(" ", strip=True) if soup.find('h1') else ""
-            
+
             body = soup.find(attrs={"itemprop": "articleBody"})
             if not body:
                 body = soup.find('article')
@@ -264,15 +272,17 @@ class ContentExtractor:
             
             if not texto or len(texto.split()) < 20:
                 raise Exception("Texto insuficiente")
-            
+
+            data_publicacao = self._extrair_data_publicacao(soup)
+
             return {
                 'url': url, 'titulo': titulo, 'texto': texto,
-                'data_publicacao': None, 'autor': None,
+                'data_publicacao': data_publicacao, 'autor': None,
                 'metodo_extracao': 'globo_specific', 'sucesso': True, 'erro': None
             }
         except Exception as e:
             return self._resultado_erro(url, f'globo: {e}', 'globo_specific')
-    
+
     def _extrair_beautifulsoup(self, url, html=None):
         """Extração genérica com BeautifulSoup."""
         for tentativa in range(self.retry_attempts):
@@ -283,7 +293,7 @@ class ContentExtractor:
                         raise Exception("HTML vazio")
                 
                 soup = BeautifulSoup(html, 'lxml')
-                
+
                 # Título
                 titulo = None
                 meta_title = soup.find('meta', property='og:title')
@@ -316,21 +326,125 @@ class ContentExtractor:
                 if not texto or len(texto.split()) < 20:
                     paragrafos = soup.find_all('p')
                     texto = '\n\n'.join([p.get_text().strip() for p in paragrafos if len(p.get_text().strip()) > 50])
-                
+
                 if not titulo or not texto or len(texto.split()) < 20:
                     raise Exception("Conteúdo insuficiente")
-                
+
+                data_publicacao = self._extrair_data_publicacao(soup)
+
                 return {
                     'url': url, 'titulo': titulo.strip(), 'texto': texto.strip()[:Config.MAX_CONTENT_LENGTH],
-                    'data_publicacao': None, 'autor': None,
+                    'data_publicacao': data_publicacao, 'autor': None,
                     'metodo_extracao': 'beautifulsoup', 'sucesso': True, 'erro': None
                 }
-            
+
             except Exception as e:
                 if tentativa < self.retry_attempts - 1:
                     time.sleep(self.retry_delay)
-        
+
         return self._resultado_erro(url, 'BeautifulSoup falhou', 'beautifulsoup')
+
+    def obter_data_publicacao(self, url=None, html=None):
+        """Obtém a data de publicação detectada para uma URL ou trecho HTML."""
+
+        try:
+            if not html and url:
+                html = self._obter_html(url)
+            if not html:
+                return None
+            soup = BeautifulSoup(html, 'lxml')
+            return self._extrair_data_publicacao(soup)
+        except Exception:
+            return None
+
+    def _extrair_data_publicacao(self, soup):
+        """Tenta identificar a data de publicação a partir de metadados comuns."""
+        if not soup:
+            return None
+
+        def limpar(valor):
+            if not valor:
+                return None
+            return str(valor).strip()
+
+        meta_selectors = [
+            {'property': 'article:published_time'},
+            {'name': 'article:published_time'},
+            {'name': 'publish-date'},
+            {'name': 'publication_date'},
+            {'name': 'pubdate'},
+            {'name': 'date'},
+            {'name': 'dc.date'},
+            {'name': 'dc.date.issued'},
+            {'property': 'og:published_time'},
+            {'property': 'og:updated_time'},
+            {'property': 'article:modified_time'},
+            {'itemprop': 'datePublished'},
+            {'itemprop': 'datecreated'},
+            {'itemprop': 'dateCreated'}
+        ]
+
+        for attrs in meta_selectors:
+            tag = soup.find('meta', attrs=attrs)
+            if tag:
+                valor = limpar(tag.get('content') or tag.get('datetime'))
+                if valor:
+                    return valor
+
+        # Procurar em tags <time>
+        for time_tag in soup.find_all('time'):
+            valor = limpar(time_tag.get('datetime') or time_tag.get('content'))
+            if valor:
+                return valor
+            texto = limpar(time_tag.get_text())
+            if texto:
+                return texto
+
+        # Analisar scripts JSON-LD
+        scripts = soup.find_all('script', type='application/ld+json')
+
+        def iterar_blocos(dado):
+            if isinstance(dado, dict):
+                yield dado
+                for chave in ('@graph', 'graph'):
+                    if chave in dado:
+                        yield from iterar_blocos(dado[chave])
+            elif isinstance(dado, list):
+                for item in dado:
+                    yield from iterar_blocos(item)
+
+        tipos_validos = {'NewsArticle', 'Article', 'ReportageNewsArticle', 'BlogPosting'}
+
+        for script in scripts:
+            try:
+                conteudo = script.string
+                if not conteudo:
+                    continue
+                data_json = json.loads(conteudo)
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            for bloco in iterar_blocos(data_json):
+                if not isinstance(bloco, dict):
+                    continue
+
+                tipo = bloco.get('@type')
+                if isinstance(tipo, list):
+                    tipos = {t for t in tipo if isinstance(t, str)}
+                elif isinstance(tipo, str):
+                    tipos = {tipo}
+                else:
+                    tipos = set()
+
+                if tipos_validos.isdisjoint(tipos):
+                    continue
+
+                for chave in ('datePublished', 'dateCreated', 'dateModified', 'uploadDate'):
+                    valor = limpar(bloco.get(chave))
+                    if valor:
+                        return valor
+
+        return None
     
     def _resultado_erro(self, url, erro, metodo=None):
         """Retorna resultado de erro padronizado."""

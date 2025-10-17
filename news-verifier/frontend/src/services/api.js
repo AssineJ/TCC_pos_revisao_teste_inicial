@@ -42,7 +42,17 @@ export async function verifyNewsRequest(type, payload) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error(' Erro do backend:', errorData);
-      throw new Error(errorData.erro || `Falha na API: ${response.status}`);
+
+      const errorMessage =
+        errorData.mensagem_usuario ||
+        errorData.erro ||
+        `Falha na API: ${response.status}`;
+
+      const backendError = new Error(errorMessage);
+      backendError.code = errorData.codigo;
+      backendError.details = errorData.detalhes;
+      backendError.status = response.status;
+      throw backendError;
     }
 
     const data = await response.json();
@@ -81,7 +91,9 @@ export async function verifyNewsRequest(type, payload) {
       url: fonte.url || '',
       title: fonte.titulo || '',
       similarity: fonte.similaridade || 0,
-      status: fonte.status || ''
+      status: fonte.status || '',
+      publishedAt: fonte.data_publicacao || null,
+      publishedYear: fonte.ano_publicacao || null
     }));
 
     return {
