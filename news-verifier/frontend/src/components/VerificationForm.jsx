@@ -7,7 +7,7 @@ const INPUT_TYPES = {
     placeholder: 'https://exemplo.com/noticia-importante',
     minLength: 10,
     helpText: 'Informe o endereço completo da notícia que será analisada.',
-    errorText: 'Informe uma URL válida com pelo menos 10 caracteres.'
+    errorText: 'Informe uma única URL válida com pelo menos 10 caracteres.'
   },
   text: {
     label: 'Validar por texto',
@@ -30,13 +30,29 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
 
   const isLoading = status === 'loading';
 
-  const charCount = useMemo(() => form.value.trim().length, [form.value]);
-  const isFormValid = charCount >= INPUT_TYPES[form.mode].minLength;
+  const sanitizedValue = useMemo(() => form.value.trim(), [form.value]);
+  const charCount = useMemo(() => sanitizedValue.length, [sanitizedValue]);
+
+  const isSingleUrl = useMemo(() => {
+    if (form.mode !== 'url') {
+      return true;
+    }
+
+    if (!sanitizedValue) {
+      return false;
+    }
+
+    const urlMatches = sanitizedValue.match(/https?:\/\/[^\s]+/gi) || [];
+    return urlMatches.length === 1 && urlMatches[0] === sanitizedValue;
+  }, [form.mode, sanitizedValue]);
+
+  const isFormValid =
+    charCount >= INPUT_TYPES[form.mode].minLength && isSingleUrl;
 
   // Validação de qualidade em tempo real
   useEffect(() => {
     if (form.mode === 'text' && charCount >= 50) {
-      const text = form.value.trim();
+      const text = sanitizedValue;
       
       // Detectar repetições excessivas
       const hasExcessiveRepetition = /(.)\1{5,}/.test(text);
@@ -56,7 +72,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
     } else {
       setTextQualityWarning('');
     }
-  }, [form.value, form.mode, charCount]);
+  }, [sanitizedValue, form.mode, charCount]);
 
   const handleModeChange = (mode) => {
     setForm({ mode, value: '' });
@@ -76,13 +92,13 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
     console.log('📤 Enviando verificação:', {
       mode: form.mode,
       type: form.mode,
-      payload: form.value.trim(),
-      length: form.value.trim().length
+      payload: sanitizedValue,
+      length: sanitizedValue.length
     });
 
     onSubmit({
       type: form.mode,
-      payload: form.value.trim()
+      payload: sanitizedValue
     });
   };
 
@@ -141,7 +157,9 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
             type="url"
             placeholder={currentConfig.placeholder}
             value={form.value}
-            onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, value: event.target.value }))
+            }
             disabled={isLoading}
             required
           />
@@ -149,9 +167,15 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
           <textarea
             placeholder={currentConfig.placeholder}
             value={form.value}
-            onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                value: event.target.value.slice(0, 300)
+              }))
+            }
             disabled={isLoading}
             minLength={currentConfig.minLength}
+            maxLength={300}
             rows={8}
             required
           />
@@ -166,7 +190,9 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
           </span>
           {touched && !isFormValid && (
             <span className="form__warning">
-              {currentConfig.errorText}
+              {form.mode === 'url' && !isSingleUrl
+                ? 'Informe apenas uma URL por vez.'
+                : currentConfig.errorText}
             </span>
           )}
           {textQualityWarning && (

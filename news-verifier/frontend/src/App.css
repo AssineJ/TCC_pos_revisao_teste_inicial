@@ -357,6 +357,108 @@ button {
   margin: 0;
 }
 
+.result__alert {
+  border-radius: 18px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.result__alert h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.result__alert-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.result__alert-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.result__alert-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.result__alert-section h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #7f1d1d;
+}
+
+.result__alert-summary {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #7f1d1d;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.result__alert--error {
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #991b1b;
+}
+
+.result__alert--error h2 {
+  color: #7f1d1d;
+}
+
+.result__alert-score {
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.result__alert-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.result__alert-list li {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.result__alert-help {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #7f1d1d;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (min-width: 640px) {
+  .result__alert-header {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 768px) {
+  .result__alert-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
 .result__score-section {
   display: flex;
   align-items: center;
@@ -430,8 +532,19 @@ button {
 }
 
 .source-logo {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
   font-size: 2rem;
   margin-bottom: 0.25rem;
+}
+
+.portal-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .source-name {
