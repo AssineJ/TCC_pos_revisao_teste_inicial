@@ -344,6 +344,19 @@ class ContentExtractor:
 
         return self._resultado_erro(url, 'BeautifulSoup falhou', 'beautifulsoup')
 
+    def obter_data_publicacao(self, url=None, html=None):
+        """Obtém a data de publicação detectada para uma URL ou trecho HTML."""
+
+        try:
+            if not html and url:
+                html = self._obter_html(url)
+            if not html:
+                return None
+            soup = BeautifulSoup(html, 'lxml')
+            return self._extrair_data_publicacao(soup)
+        except Exception:
+            return None
+
     def _extrair_data_publicacao(self, soup):
         """Tenta identificar a data de publicação a partir de metadados comuns."""
         if not soup:
