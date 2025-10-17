@@ -13,13 +13,12 @@ const STATUS_COPY = {
   }
 };
 
-// Logos dos portais (base64 ou URL)
-const PORTAL_LOGOS = {
-  'G1': '🌐',
-  'Folha de S.Paulo': '📰',
-  'UOL Notícias': '📱',
-  'IstoÉ': '📄',
-  'Estadão': '📰'
+export const PORTAL_LOGOS = {
+  'G1': '/assets/g1-logo.png',
+  'Folha de S.Paulo': '/assets/logo-folha.png',
+  'UOL Notícias': '/assets/uol-logo.jpg',
+  'IstoÉ': '/assets/istoe-logo.jpeg',
+  'Estadão': '/assets/estadao-logo.png'
 };
 
 function SourceModal({ source, onClose }) {

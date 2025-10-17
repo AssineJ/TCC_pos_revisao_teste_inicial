@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { FiLink, FiFileText, FiRefreshCw, FiSend } from 'react-icons/fi';
 
 const INPUT_TYPES = {
@@ -12,7 +12,7 @@ const INPUT_TYPES = {
   text: {
     label: 'Validar por texto',
     placeholder: 'Cole o conteúdo da notícia que deseja analisar...',
-    minLength: 50,  // ✅ CORREÇÃO: Alinhado com o backend (Config.MIN_CONTENT_LENGTH)
+    minLength: 50,
     helpText: 'Insira o texto completo da notícia. Mínimo de 50 caracteres para análise precisa.',
     errorText: 'Insira pelo menos 50 caracteres para permitir a análise.'
   }
@@ -26,16 +26,43 @@ const INITIAL_FORM = {
 export default function VerificationForm({ status, onSubmit, onReset, lastRequest }) {
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState(false);
+  const [textQualityWarning, setTextQualityWarning] = useState('');
 
   const isLoading = status === 'loading';
 
   const charCount = useMemo(() => form.value.trim().length, [form.value]);
   const isFormValid = charCount >= INPUT_TYPES[form.mode].minLength;
 
+  // Validação de qualidade em tempo real
+  useEffect(() => {
+    if (form.mode === 'text' && charCount >= 50) {
+      const text = form.value.trim();
+      
+      // Detectar repetições excessivas
+      const hasExcessiveRepetition = /(.)\1{5,}/.test(text);
+      
+      // Detectar poucas palavras únicas
+      const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+      const uniqueWords = new Set(words).size;
+      const repetitionRatio = words.length > 0 ? uniqueWords / words.length : 1;
+      
+      if (hasExcessiveRepetition) {
+        setTextQualityWarning('⚠️ Texto com caracteres repetidos excessivamente');
+      } else if (repetitionRatio < 0.3 && words.length > 5) {
+        setTextQualityWarning('⚠️ Texto parece ter muitas palavras repetidas');
+      } else {
+        setTextQualityWarning('');
+      }
+    } else {
+      setTextQualityWarning('');
+    }
+  }, [form.value, form.mode, charCount]);
+
   const handleModeChange = (mode) => {
     setForm({ mode, value: '' });
     setTouched(false);
-    onReset?.();
+    setTextQualityWarning('');
+    if (onReset) onReset();
   };
 
   const handleSubmit = (event) => {
@@ -46,16 +73,15 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
       return;
     }
 
-    // ✅ LOG: Mostra o que está sendo enviado
     console.log('📤 Enviando verificação:', {
       mode: form.mode,
-      type: form.mode,  // 'url' ou 'text'
+      type: form.mode,
       payload: form.value.trim(),
       length: form.value.trim().length
     });
 
     onSubmit({
-      type: form.mode,  // ✅ Envia 'url' ou 'text' (em inglês)
+      type: form.mode,
       payload: form.value.trim()
     });
   };
@@ -63,7 +89,8 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
   const handleReset = () => {
     setForm(INITIAL_FORM);
     setTouched(false);
-    onReset?.();
+    setTextQualityWarning('');
+    if (onReset) onReset();
   };
 
   const currentConfig = INPUT_TYPES[form.mode];
@@ -140,6 +167,11 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
           {touched && !isFormValid && (
             <span className="form__warning">
               {currentConfig.errorText}
+            </span>
+          )}
+          {textQualityWarning && (
+            <span className="form__warning">
+              {textQualityWarning}
             </span>
           )}
           {lastRequest && (

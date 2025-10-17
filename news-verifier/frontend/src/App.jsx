@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import VerificationForm from './components/VerificationForm.jsx';
 import VerificationResult from './components/VerificationResult.jsx';
 import useNewsVerification from './hooks/useNewsVerification.js';
@@ -18,7 +17,7 @@ export default function App() {
       {/* Header Minimalista */}
       <header className="header">
         <div className="header__content">
-          <h1 className="header__title">ConfereAí!</h1>
+          <h1 className="header__title">NewsTrust</h1>
           <p className="header__subtitle">
             Verificador de Veracidade de Notícias com IA
           </p>
@@ -63,7 +62,7 @@ export default function App() {
       {/* Footer Minimalista */}
       <footer className="footer">
         <p>
-          ConfereAí! © {new Date().getFullYear()} • Verificação com IA e Fontes Confiáveis
+          NewsTrust © {new Date().getFullYear()} • Verificação com IA e Fontes Confiáveis
         </p>
       </footer>
     </div>
