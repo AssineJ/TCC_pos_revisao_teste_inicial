@@ -14,11 +14,28 @@ const STATUS_COPY = {
 };
 
 export const PORTAL_LOGOS = {
-  'G1': '/assets/g1-logo.png',
-  'Folha de S.Paulo': '/assets/logo-folha.png',
-  'UOL Notícias': '/assets/uol-logo.jpg',
-  'IstoÉ': '/assets/istoe-logo.jpeg',
-  'Estadão': '/assets/estadao-logo.png'
+  'G1': { src: '/assets/g1-logo.png', alt: 'G1' },
+  'Folha de S.Paulo': { src: '/assets/logo-folha.png', alt: 'Folha de S.Paulo' },
+  'UOL Notícias': { src: '/assets/uol-logo.jpg', alt: 'UOL Notícias' },
+  'IstoÉ': { src: '/assets/istoe-logo.jpeg', alt: 'IstoÉ' },
+  'Estadão': { src: '/assets/estadao-logo.png', alt: 'Estadão' }
+};
+
+const renderPortalLogo = (name) => {
+  const logo = PORTAL_LOGOS[name];
+
+  if (!logo) {
+    return '🌐';
+  }
+
+  return (
+    <img
+      src={logo.src}
+      alt={logo.alt || name}
+      className="portal-logo-image"
+      loading="lazy"
+    />
+  );
 };
 
 function SourceModal({ source, onClose }) {
@@ -33,7 +50,7 @@ function SourceModal({ source, onClose }) {
         
         <div className="modal-header">
           <div className="modal-logo">
-            {PORTAL_LOGOS[source.name] || '🌐'}
+            {renderPortalLogo(source.name)}
           </div>
           <div>
             <h3>{source.name}</h3>
@@ -95,6 +112,54 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
+  const isLowQualityError = result?.error_code === 'LOW_TEXT_QUALITY';
+
+  if (isLowQualityError) {
+    const issues = Array.isArray(result.signals) ? result.signals : [];
+    const qualityScore = result.quality_validation?.score_qualidade;
+    const hasQualityScore = typeof qualityScore === 'number';
+
+    return (
+      <div className="card card--result">
+        <div className="result__content">
+          <div className="result__label">RESULTADO DA ANÁLISE</div>
+
+          <div className="result__alert result__alert--error">
+            <div className="result__alert-header">
+              <h2>Dados insuficientes para validação</h2>
+
+              {hasQualityScore && (
+                <span className="result__alert-score">
+                  Nível de qualidade identificado: {(qualityScore * 100).toFixed(0)}%
+                </span>
+              )}
+            </div>
+
+            <div className="result__alert-grid">
+              <div className="result__alert-section">
+                <p className="result__alert-summary">{result.summary}</p>
+                <p className="result__alert-help">
+                  Forneça um texto com contexto suficiente, evitando repetições ou palavras desconexas, e tente novamente.
+                </p>
+              </div>
+
+              {issues.length > 0 && (
+                <div className="result__alert-section">
+                  <h3>Problemas identificados</h3>
+                  <ul className="result__alert-list">
+                    {issues.map((issue, index) => (
+                      <li key={index}>{issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const {
     veracity_score,
     summary,
@@ -151,7 +216,7 @@ export default function VerificationResult({ status, result }) {
                     onClick={() => setSelectedSource(source)}
                   >
                     <div className="source-logo">
-                      {PORTAL_LOGOS[source.name] || '🌐'}
+                      {renderPortalLogo(source.name)}
                     </div>
                     <div className="source-name">{source.name}</div>
                     <div className="source-similarity">
