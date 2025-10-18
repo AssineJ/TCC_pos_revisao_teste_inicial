@@ -22,19 +22,36 @@ export const PORTAL_LOGOS = {
   'Estadão': { src: '/assets/estadao-logo.png', alt: 'Estadão' }
 };
 
+function renderLogo(sourceName) {
+  const logo = PORTAL_LOGOS[sourceName];
+
+  if (!logo) {
+    return (
+      <span role="img" aria-label="Fonte não cadastrada">
+        🌐
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="portal-logo-image"
+      src={logo.src}
+      alt={logo.alt || sourceName}
+      loading="lazy"
+    />
+  );
+}
+
 function SourceModal({ source, onClose }) {
   if (!source) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Fechar">
-          ✕
-        </button>
-        
         <div className="modal-header">
           <div className="modal-logo">
-            {PORTAL_LOGOS[source.name] || '🌐'}
+            {renderLogo(source.name)}
           </div>
           <div>
             <h3>{source.name}</h3>
@@ -208,7 +225,7 @@ export default function VerificationResult({ status, result }) {
                     onClick={() => setSelectedSource(source)}
                   >
                     <div className="source-logo">
-                      {PORTAL_LOGOS[source.name] || '🌐'}
+                      {renderLogo(source.name)}
                     </div>
                     <div className="source-name">{source.name}</div>
                     <div className="source-similarity">
