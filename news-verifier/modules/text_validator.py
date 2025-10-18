@@ -12,7 +12,38 @@ Data: 2025
 """
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
+
+
+def _detectar_sequencia_repetida(palavras, repeticoes_min=3):
+    """Identifica padrões de palavras repetidas em sequência.
+
+    Procura por n-gramas (2 a 5 palavras) que apareçam repetidamente no texto.
+    Retorna a sequência mais recorrente quando ela cobre a maior parte do texto,
+    indicando que provavelmente trata-se de conteúdo duplicado ou sem contexto.
+    """
+
+    if len(palavras) < repeticoes_min * 2:
+        return None
+
+    max_window = min(5, max(2, len(palavras) // repeticoes_min))
+
+    for tamanho in range(2, max_window + 1):
+        ocorrencias = defaultdict(int)
+        limite = len(palavras) - tamanho + 1
+
+        for inicio in range(limite):
+            sequencia = tuple(palavras[inicio:inicio + tamanho])
+            ocorrencias[sequencia] += 1
+            frequencia = ocorrencias[sequencia]
+
+            if frequencia >= repeticoes_min:
+                cobertura = (frequencia * tamanho) / len(palavras)
+
+                if cobertura >= 0.6:
+                    return ' '.join(sequencia), frequencia
+
+    return None
 
 
 def validar_qualidade_texto(texto: str) -> dict:
@@ -34,6 +65,7 @@ def validar_qualidade_texto(texto: str) -> dict:
     texto_limpo = texto.strip()
     problemas = []
     score_qualidade = 1.0
+    texto_repetitivo = False
     
     # ========================================================================
     # REGRA 1: Detectar repetições excessivas de caracteres
@@ -80,11 +112,40 @@ def validar_qualidade_texto(texto: str) -> dict:
     if palavras:
         contador = Counter(palavras)
         palavra_mais_comum, freq_max = contador.most_common(1)[0]
-        
+
         # Se uma palavra aparece em mais de 50% do texto
         if freq_max / len(palavras) > 0.5:
             problemas.append(f"Palavra '{palavra_mais_comum}' repetida {freq_max} vezes")
             score_qualidade -= 0.3
+
+        # Detecta repetições consecutivas da mesma palavra
+        repeticoes_consecutivas = 0
+        maior_bloco = 1
+        bloco_atual = 1
+
+        for i in range(1, len(palavras)):
+            if palavras[i] == palavras[i - 1]:
+                bloco_atual += 1
+                repeticoes_consecutivas += 1
+                maior_bloco = max(maior_bloco, bloco_atual)
+            else:
+                bloco_atual = 1
+
+        if maior_bloco >= 3 or repeticoes_consecutivas >= max(3, int(len(palavras) * 0.3)):
+            problemas.append("Muitas palavras repetidas em sequência")
+            score_qualidade -= 0.2
+            texto_repetitivo = True
+
+        # Detecta padrões de frases repetidas (conteúdo duplicado)
+        sequencia_repetida = _detectar_sequencia_repetida(palavras)
+
+        if sequencia_repetida:
+            sequencia, frequencia = sequencia_repetida
+            problemas.append(
+                f"Sequência repetida detectada: '{sequencia}' ({frequencia} vezes)"
+            )
+            score_qualidade -= 0.4
+            texto_repetitivo = True
     
     # ========================================================================
     # REGRA 5: Verificar se tem verbos/substantivos (heurística simples)
@@ -95,16 +156,34 @@ def validar_qualidade_texto(texto: str) -> dict:
     if len(palavras_longas) < 3:
         problemas.append("Poucas palavras significativas (≥ 3 letras)")
         score_qualidade -= 0.2
+
+    # ========================================================================
+    # REGRA 6: Verificar excesso de palavras muito curtas (texto desconexo)
+    # ========================================================================
+    if palavras:
+        palavras_muito_curtas = [p for p in palavras if len(p) <= 2]
+        proporcao_curtas = len(palavras_muito_curtas) / len(palavras)
+
+        if proporcao_curtas >= 0.6:
+            problemas.append("Texto com muitas palavras soltas ou fora de contexto")
+            score_qualidade -= 0.2
     
     # ========================================================================
     # DECISÃO FINAL
     # ========================================================================
     score_qualidade = max(0.0, score_qualidade)
     
-    valido = score_qualidade >= 0.4 and len(problemas) <= 2
+    valido = score_qualidade >= 0.4 and len(problemas) <= 2 and not texto_repetitivo
     
     if not valido:
-        motivo = "Texto inválido: " + "; ".join(problemas)
+        if problemas:
+            detalhes = "; ".join(problemas)
+            motivo = (
+                "Erro: dados fornecidos insuficientes para uma validação. "
+                f"Detalhes: {detalhes}"
+            )
+        else:
+            motivo = "Erro: dados fornecidos insuficientes para uma validação."
     else:
         motivo = "Texto válido para análise"
     
