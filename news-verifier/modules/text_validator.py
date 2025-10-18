@@ -12,7 +12,38 @@ Data: 2025
 """
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
+
+
+def _detectar_sequencia_repetida(palavras, repeticoes_min=3):
+    """Identifica padrões de palavras repetidas em sequência.
+
+    Procura por n-gramas (2 a 5 palavras) que apareçam repetidamente no texto.
+    Retorna a sequência mais recorrente quando ela cobre a maior parte do texto,
+    indicando que provavelmente trata-se de conteúdo duplicado ou sem contexto.
+    """
+
+    if len(palavras) < repeticoes_min * 2:
+        return None
+
+    max_window = min(5, max(2, len(palavras) // repeticoes_min))
+
+    for tamanho in range(2, max_window + 1):
+        ocorrencias = defaultdict(int)
+        limite = len(palavras) - tamanho + 1
+
+        for inicio in range(limite):
+            sequencia = tuple(palavras[inicio:inicio + tamanho])
+            ocorrencias[sequencia] += 1
+            frequencia = ocorrencias[sequencia]
+
+            if frequencia >= repeticoes_min:
+                cobertura = (frequencia * tamanho) / len(palavras)
+
+                if cobertura >= 0.6:
+                    return ' '.join(sequencia), frequencia
+
+    return None
 
 
 def _detectar_sequencia_repetida(palavras, repeticoes_min=3):
@@ -178,7 +209,14 @@ def validar_qualidade_texto(texto: str) -> dict:
     valido = score_qualidade >= 0.4 and len(problemas) <= 2 and not texto_repetitivo
     
     if not valido:
-        motivo = "Texto inválido: " + "; ".join(problemas)
+        if problemas:
+            detalhes = "; ".join(problemas)
+            motivo = (
+                "Erro: dados fornecidos insuficientes para uma validação. "
+                f"Detalhes: {detalhes}"
+            )
+        else:
+            motivo = "Erro: dados fornecidos insuficientes para uma validação."
     else:
         motivo = "Texto válido para análise"
     
