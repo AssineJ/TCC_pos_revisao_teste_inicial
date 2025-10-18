@@ -15,7 +15,7 @@ export default function LoadingIndicator() {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
-    // Atualiza o tempo decorrido a cada segundo
+    
     const timer = setInterval(() => {
       setElapsedTime(prev => prev + 1);
     }, 1000);
@@ -24,7 +24,7 @@ export default function LoadingIndicator() {
   }, []);
 
   useEffect(() => {
-    // Atualiza o estágio baseado no tempo decorrido
+    
     const stage = LOADING_STAGES.findIndex((s, i) => {
       const nextStage = LOADING_STAGES[i + 1];
       return elapsedTime >= s.time && (!nextStage || elapsedTime < nextStage.time);
@@ -36,7 +36,7 @@ export default function LoadingIndicator() {
   }, [elapsedTime, currentStage]);
 
   const currentMessage = LOADING_STAGES[currentStage];
-  const progress = Math.min((elapsedTime / 180) * 100, 95); // Máximo 95% até terminar
+  const progress = Math.min((elapsedTime / 180) * 100, 95); 
 
   return (
     <div className="loading">
@@ -47,14 +47,11 @@ export default function LoadingIndicator() {
       </div>
       
       <div className="loading__text">
-        <strong style={{ fontSize: '1.1rem' }}>
-          {currentMessage.emoji} Verificando autenticidade
-        </strong>
+        <strong style={{ fontSize: '1.1rem' }}>Verificando autenticidade</strong>
         <p style={{ margin: '0.5rem 0', color: '#475569' }}>
           {currentMessage.message}
         </p>
         
-        {/* Barra de progresso */}
         <div style={{
           width: '100%',
           height: '8px',
@@ -73,7 +70,7 @@ export default function LoadingIndicator() {
         </div>
         
         <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0' }}>
-          {elapsedTime}s decorridos • Tempo estimado: 1-3 minutos
+          {elapsedTime}s decorridos - Tempo estimado: 1-3 minutos
         </p>
         
         {elapsedTime > 120 && (
@@ -83,7 +80,7 @@ export default function LoadingIndicator() {
             margin: '0.5rem 0 0',
             fontWeight: '600'
           }}>
-            ⏳ Análise mais demorada que o normal, aguarde...
+             Análise mais demorada que o normal, aguarde...
           </p>
         )}
       </div>

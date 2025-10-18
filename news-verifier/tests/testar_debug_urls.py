@@ -4,7 +4,7 @@ import json
 BASE_URL = 'http://127.0.0.1:5000'
 
 print("=" * 70)
-print("🔍 TESTE COM DEBUG DE URLs")
+print("TESTE COM DEBUG DE URLs")
 print("=" * 70)
 print()
 
@@ -12,8 +12,8 @@ texto = "Lula Haddad reforma tributária Brasil"
 
 dados = {"tipo": "texto", "conteudo": texto}
 
-print("📤 Enviando requisição...")
-print("⏳ Aguarde... Veja os logs do servidor para debug")
+print("Enviando requisição...")
+print("Aguarde... Veja os logs do servidor para debug")
 print()
 
 response = requests.post(f'{BASE_URL}/api/verificar', json=dados, timeout=120)
@@ -22,7 +22,7 @@ if response.status_code == 200:
     resultado = response.json()
     
     print("=" * 70)
-    print("✅ RESPOSTA RECEBIDA")
+    print("RESPOSTA RECEBIDA")
     print("=" * 70)
     print()
     
@@ -43,7 +43,7 @@ if response.status_code == 200:
         print(f"   URL: {url}")
         
         if tamanho < 80:
-            print(f"   ⚠️  SUSPEITA DE TRUNCAMENTO!")
+            print(f"     SUSPEITA DE TRUNCAMENTO!")
             urls_curtas.append((fonte['nome'], url, tamanho))
         else:
             urls_ok.append((fonte['nome'], url, tamanho))
@@ -51,17 +51,17 @@ if response.status_code == 200:
         print()
     
     print("=" * 70)
-    print("📊 ANÁLISE:")
+    print("ANÁLISE:")
     print("=" * 70)
     print(f"URLs OK (>= 80 chars): {len(urls_ok)}")
     print(f"URLs curtas (< 80 chars): {len(urls_curtas)}")
     
     if urls_curtas:
         print()
-        print("⚠️  URLs SUSPEITAS DE TRUNCAMENTO:")
+        print("  URLs SUSPEITAS DE TRUNCAMENTO:")
         for nome, url, tam in urls_curtas:
             print(f"  • {nome}: {tam} chars")
             print(f"    {url}")
 
 else:
-    print(f"❌ Erro: {response.status_code}")
+    print(f"Erro: {response.status_code}")

@@ -5,7 +5,7 @@ Responsabilidade:
     Calcular o score final de veracidade (10-95%) baseado na análise semântica
     e gerar justificativa detalhada e profissional.
     
-    ✅ NOVO: Agora penaliza FORTEMENTE notícias contraditadas por fontes
+     NOVO: Agora penaliza FORTEMENTE notícias contraditadas por fontes
 
 Lógica:
     - Peso por tipo de confirmação (forte, parcial, menciona)
@@ -51,24 +51,24 @@ class VeracityScorer:
         
         meta = resultado_analise_semantica.get('metadata', {})
         
-        # Extrair dados da análise
+                                  
         total_analisados = meta.get('total_analisados', 0)
-        contradizem = meta.get('contradizem', 0)  # ✅ NOVO
+        contradizem = meta.get('contradizem', 0)         
         confirmam_forte = meta.get('confirmam_forte', 0)
         confirmam_parcial = meta.get('confirmam_parcial', 0)
         apenas_mencionam = meta.get('apenas_mencionam', 0)
         nao_relacionados = meta.get('nao_relacionados', 0)
         
-        # ✅ NOVO: Se há contradições, inicia com score MUITO BAIXO
+                                                                 
         if contradizem > 0:
-            print(f"\n⚠️  ALERTA: {contradizem} fonte(s) CONTRADIZEM a informação!")
-            score_base = 10.0  # Começa no mínimo para fake news
+            print(f"\n  ALERTA: {contradizem} fonte(s) CONTRADIZEM a informação!")
+            score_base = 10.0                                   
             detalhes_calculo = {
                 'motivo': 'Fontes contradizem a informação',
                 'contradizem': contradizem
             }
         else:
-            # ETAPA 1: Calcular score base (lógica normal)
+                                                          
             score_base, detalhes_calculo = self._calcular_score_base(
                 total_analisados,
                 confirmam_forte,
@@ -76,17 +76,17 @@ class VeracityScorer:
                 apenas_mencionam
             )
         
-        # ETAPA 2: Aplicar penalidades
+                                      
         penalidades, score_com_penalidades = self._aplicar_penalidades(
             score_base,
             total_analisados,
             confirmam_forte,
             nao_relacionados,
-            contradizem,  # ✅ NOVO
+            contradizem,         
             resultado_analise_semantica
         )
         
-        # ETAPA 3: Aplicar bônus (SÓ se não houver contradições)
+                                                                
         if contradizem == 0:
             bonus, score_com_bonus = self._aplicar_bonus(
                 score_com_penalidades,
@@ -97,27 +97,27 @@ class VeracityScorer:
         else:
             bonus = {}
             score_com_bonus = score_com_penalidades
-            print(f"   🚫 Bônus desativados devido a contradições")
+            print(f"    Bônus desativados devido a contradições")
         
-        # ETAPA 4: Aplicar limites (10-95%)
+                                           
         score_final = max(self.min_score, min(self.max_score, int(score_com_bonus)))
         
-        # ETAPA 5: Determinar nível de confiança
+                                                
         nivel_confianca = self._determinar_nivel_confianca(
             score_final,
             total_analisados,
             confirmam_forte,
-            contradizem  # ✅ NOVO
+            contradizem         
         )
         
-        # ETAPA 6: Gerar justificativa
+                                      
         justificativa = self._gerar_justificativa(
             score_final,
             total_analisados,
             confirmam_forte,
             confirmam_parcial,
             apenas_mencionam,
-            contradizem,  # ✅ NOVO
+            contradizem,         
             nivel_confianca,
             penalidades,
             bonus
@@ -133,7 +133,7 @@ class VeracityScorer:
                 'score_com_penalidades': round(score_com_penalidades, 2),
                 'score_com_bonus': round(score_com_bonus, 2),
                 'score_final': score_final,
-                'contradizem': contradizem  # ✅ NOVO
+                'contradizem': contradizem         
             },
             'nivel_confianca': nivel_confianca
         }
@@ -155,14 +155,14 @@ class VeracityScorer:
         if total == 0:
             return (10.0, {'motivo': 'Nenhuma fonte analisada'})
         
-        # Calcular pesos
+                        
         peso_forte = forte * Config.WEIGHT_STRONG_CONFIRMATION
         peso_parcial = parcial * Config.WEIGHT_PARTIAL_CONFIRMATION
         peso_menciona = menciona * Config.WEIGHT_MENTION
         
         peso_total = peso_forte + peso_parcial + peso_menciona
         
-        # Calcular percentual base
+                                  
         score_base = (peso_total / total) * 100
         
         detalhes = {
@@ -180,7 +180,7 @@ class VeracityScorer:
         """
         Aplica penalidades ao score.
         
-        ✅ NOVO: Penalidade SEVERA para contradições
+         NOVO: Penalidade SEVERA para contradições
         
         Penalidades:
         - CONTRADIÇÕES: -70% (NOVA E PRIORIDADE)
@@ -194,7 +194,7 @@ class VeracityScorer:
             total (int): Total analisado
             forte (int): Confirmações fortes
             nao_rel (int): Não relacionados
-            contradizem (int): ✅ NOVO - Fontes que contradizem
+            contradizem (int):  NOVO - Fontes que contradizem
             analise (dict): Análise completa
             
         Returns:
@@ -203,19 +203,19 @@ class VeracityScorer:
         penalidades = {}
         score_atual = score
         
-        # ✅ NOVA PENALIDADE 1: CONTRADIÇÕES (MÁXIMA PRIORIDADE!)
+                                                               
         if contradizem > 0:
-            # Penalidade severa: 50% base + 10% por contradição adicional
+                                                                         
             reducao = min(50 + (contradizem - 1) * 10, 70)
             penalidades['contradicoes_detectadas'] = {
                 'percentual': reducao,
                 'quantidade': contradizem,
-                'motivo': f'⚠️ {contradizem} fonte(s) CONTRADIZEM a informação (provável FAKE NEWS)'
+                'motivo': f'{contradizem} fonte(s) CONTRADIZEM a informação (provável FAKE NEWS)'
             }
             score_atual *= (1 - reducao/100)
-            print(f"   🔻 Penalidade por contradição: -{reducao}% | Score: {score_atual:.1f}%")
+            print(f"    Penalidade por contradição: -{reducao}% | Score: {score_atual:.1f}%")
         
-        # Penalidade 2: Nenhuma fonte
+                                     
         if total == 0:
             penalidades['sem_fontes'] = {
                 'percentual': 80,
@@ -223,7 +223,7 @@ class VeracityScorer:
             }
             return (penalidades, score * Config.PENALTY_NO_SOURCES)
         
-        # Penalidade 3: Poucas fontes
+                                     
         if total < 3:
             reducao = 20
             penalidades['poucas_fontes'] = {
@@ -232,7 +232,7 @@ class VeracityScorer:
             }
             score_atual *= (1 - reducao/100)
         
-        # Penalidade 4: Nenhuma confirmação forte (SÓ se NÃO houver contradições)
+                                                                                 
         if forte == 0 and total > 0 and contradizem == 0:
             reducao = 15
             penalidades['sem_confirmacao_forte'] = {
@@ -241,7 +241,7 @@ class VeracityScorer:
             }
             score_atual *= (1 - reducao/100)
         
-        # Penalidade 5: Muitos não relacionados (> 50%)
+                                                       
         if total > 0 and (nao_rel / total) > 0.5:
             reducao = 10
             penalidades['muitos_nao_relacionados'] = {
@@ -277,7 +277,7 @@ class VeracityScorer:
         if total == 0:
             return (bonus, score_atual)
         
-        # Bônus 1: Alta taxa de confirmação forte
+                                                 
         taxa_forte = forte / total
         if taxa_forte > 0.7:
             aumento = 10
@@ -287,7 +287,7 @@ class VeracityScorer:
             }
             score_atual *= (1 + aumento/100)
         
-        # Bônus 2: Múltiplas fontes
+                                   
         if total >= 5:
             aumento = 5
             bonus['multiplas_fontes'] = {
@@ -296,7 +296,7 @@ class VeracityScorer:
             }
             score_atual *= (1 + aumento/100)
         
-        # Bônus 3: Alta similaridade média
+                                          
         similaridade_media = self._calcular_similaridade_media(analise)
         if similaridade_media > 0.75:
             aumento = 10
@@ -341,30 +341,30 @@ class VeracityScorer:
         """
         Determina nível de confiança da análise.
         
-        ✅ NOVO: Considera contradições
+         NOVO: Considera contradições
         
         Args:
             score (int): Score final
             total (int): Total analisado
             forte (int): Confirmações fortes
-            contradizem (int): ✅ NOVO - Fontes que contradizem
+            contradizem (int):  NOVO - Fontes que contradizem
             
         Returns:
             str: 'alto', 'medio', 'baixo'
         """
-        # ✅ NOVO: Se há contradições, sempre é BAIXO
+                                                   
         if contradizem > 0:
             return 'baixo'
         
-        # Alto: score >= 70 E (total >= 5 OU forte >= 3)
+                                                        
         if score >= 70 and (total >= 5 or forte >= 3):
             return 'alto'
         
-        # Baixo: score < 30 OU total < 2
+                                        
         if score < 30 or total < 2:
             return 'baixo'
         
-        # Médio: resto
+                      
         return 'medio'
     
     
@@ -373,7 +373,7 @@ class VeracityScorer:
         """
         Gera justificativa detalhada e profissional.
         
-        ✅ NOVO: Inclui alerta sobre contradições
+         NOVO: Inclui alerta sobre contradições
         
         Args:
             score (int): Score final
@@ -381,7 +381,7 @@ class VeracityScorer:
             forte (int): Confirmações fortes
             parcial (int): Confirmações parciais
             menciona (int): Apenas mencionam
-            contradizem (int): ✅ NOVO - Fontes que contradizem
+            contradizem (int):  NOVO - Fontes que contradizem
             nivel (str): Nível de confiança
             penalidades (dict): Penalidades aplicadas
             bonus (dict): Bônus aplicados
@@ -389,9 +389,9 @@ class VeracityScorer:
         Returns:
             str: Justificativa formatada
         """
-        # ✅ NOVA ABERTURA: Se há contradições, alerta imediato
+                                                             
         if contradizem > 0:
-            abertura = f"⚠️ ALERTA DE FAKE NEWS: {contradizem} fonte(s) confiável(is) CONTRADIZEM esta informação."
+            abertura = f"ALERTA DE FAKE NEWS: {contradizem} fonte(s) confiável(is) CONTRADIZEM esta informação."
         elif score >= 80:
             abertura = "Informação amplamente confirmada por fontes confiáveis."
         elif score >= 60:
@@ -403,12 +403,12 @@ class VeracityScorer:
         else:
             abertura = "Informação não encontrada ou contradita por fontes confiáveis."
         
-        # Detalhes da análise
+                             
         if total > 0:
             detalhes_partes = []
             
             if contradizem > 0:
-                detalhes_partes.append(f"⚠️ {contradizem} CONTRADIZEM")
+                detalhes_partes.append(f" {contradizem} CONTRADIZEM")
             
             if forte > 0:
                 detalhes_partes.append(f"{forte} confirmam fortemente")
@@ -423,27 +423,27 @@ class VeracityScorer:
         else:
             detalhes = "Nenhuma fonte confiável encontrou informações relacionadas ao tema."
         
-        # Alertas sobre penalidades
+                                   
         alertas = []
         
-        if 'contradicoes_detectadas' in penalidades:
-            alertas.append("🚨 ATENÇÃO: Fontes confiáveis apresentam informações OPOSTAS ao afirmado. Provável desinformação.")
+        if 'contradicoes_detectadas'in penalidades:
+            alertas.append("ATENÇÃO: Fontes confiáveis apresentam informações OPOSTAS ao afirmado. Provável desinformação.")
         
-        if 'sem_fontes' in penalidades:
-            alertas.append("⚠️ Atenção: Tema não encontrado em portais confiáveis.")
+        if 'sem_fontes'in penalidades:
+            alertas.append("Atenção: Tema não encontrado em portais confiáveis.")
         
-        if 'poucas_fontes' in penalidades:
-            alertas.append("⚠️ Atenção: Análise baseada em poucas fontes.")
+        if 'poucas_fontes'in penalidades:
+            alertas.append("Atenção: Análise baseada em poucas fontes.")
         
-        # Notas sobre bônus
+                           
         notas_bonus = []
-        if 'alta_confirmacao' in bonus:
-            notas_bonus.append("✓ Alta taxa de confirmação entre as fontes.")
+        if 'alta_confirmacao'in bonus:
+            notas_bonus.append("Alta taxa de confirmação entre as fontes.")
         
-        if 'multiplas_fontes' in bonus:
-            notas_bonus.append("✓ Análise baseada em múltiplas fontes independentes.")
+        if 'multiplas_fontes'in bonus:
+            notas_bonus.append("Análise baseada em múltiplas fontes independentes.")
         
-        # Nível de confiança
+                            
         if nivel == 'alto':
             confianca_msg = "Nível de confiança: ALTO"
         elif nivel == 'medio':
@@ -451,7 +451,7 @@ class VeracityScorer:
         else:
             confianca_msg = "Nível de confiança: BAIXO"
         
-        # Montar justificativa final
+                                    
         partes = [abertura, detalhes]
         
         if alertas:
@@ -467,9 +467,9 @@ class VeracityScorer:
         return justificativa
 
 
-# ============================================================================
-# FUNÇÃO DE CONVENIÊNCIA
-# ============================================================================
+                                                                              
+                        
+                                                                              
 
 def calcular_veracidade(resultado_analise_semantica, metadata_contexto=None):
     """
@@ -486,24 +486,24 @@ def calcular_veracidade(resultado_analise_semantica, metadata_contexto=None):
     return scorer.calcular_veracidade(resultado_analise_semantica, metadata_contexto)
 
 
-# ============================================================================
-# TESTE DO MÓDULO
-# ============================================================================
+                                                                              
+                 
+                                                                              
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("🧪 TESTANDO MÓDULO SCORER COM DETECÇÃO DE CONTRADIÇÃO")
+    print("TESTANDO MÓDULO SCORER COM DETECÇÃO DE CONTRADIÇÃO")
     print("=" * 70)
     print()
     
-    # Cenário 1: FAKE NEWS com contradição
+                                          
     print("Cenário 1: FAKE NEWS (com contradição)")
     print("-" * 70)
     
     analise_fake = {
         'metadata': {
             'total_analisados': 5,
-            'contradizem': 3,  # ✅ NOVO
+            'contradizem': 3,         
             'confirmam_forte': 0,
             'confirmam_parcial': 0,
             'apenas_mencionam': 2,
@@ -520,7 +520,7 @@ if __name__ == "__main__":
     print(f"Justificativa: {resultado['justificativa']}")
     print()
     
-    # Cenário 2: Alta veracidade
+                                
     print("Cenário 2: Alta Veracidade (notícia real)")
     print("-" * 70)
     
@@ -545,7 +545,7 @@ if __name__ == "__main__":
     print(f"Justificativa: {resultado['justificativa']}")
     print()
     
-    # Cenário 3: Sem fontes
+                           
     print("Cenário 3: Sem Fontes")
     print("-" * 70)
     
@@ -567,5 +567,5 @@ if __name__ == "__main__":
     print()
     
     print("=" * 70)
-    print("✅ TESTES CONCLUÍDOS!")
+    print("TESTES CONCLUÍDOS!")
     print("=" * 70)

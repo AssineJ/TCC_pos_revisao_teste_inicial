@@ -27,7 +27,7 @@ def test_detecta_textos_com_palavras_ou_frases_repetidas(texto, mensagem_esperad
     resultado = validar_qualidade_texto(texto)
 
     assert resultado["valido"] is False
-    assert "dados fornecidos insuficientes" in resultado["motivo"].lower()
+    assert "dados fornecidos insuficientes"in resultado["motivo"].lower()
     assert any(mensagem_esperada in problema for problema in resultado["problemas"])
 
 
@@ -37,8 +37,8 @@ def test_detecta_texto_sem_contexto_repleto_de_palavras_curtas():
     resultado = validar_qualidade_texto(texto)
 
     assert resultado["valido"] is False
-    assert "dados fornecidos insuficientes" in resultado["motivo"].lower()
+    assert "dados fornecidos insuficientes"in resultado["motivo"].lower()
     assert any(
-        "fora de contexto" in problema.lower() or "muitas palavras soltas" in problema.lower()
+        "fora de contexto"in problema.lower() or "muitas palavras soltas"in problema.lower()
         for problema in resultado["problemas"]
     )

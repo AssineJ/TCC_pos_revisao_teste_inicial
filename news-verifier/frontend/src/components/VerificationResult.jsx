@@ -13,7 +13,7 @@ const STATUS_COPY = {
   }
 };
 
-// Logos dos portais (base64 ou URL)
+
 export const PORTAL_LOGOS = {
   'G1': { src: '/assets/g1-logo.png', alt: 'G1' },
   'Folha de S.Paulo': { src: '/assets/logo-folha.png', alt: 'Folha de S.Paulo' },
@@ -27,9 +27,7 @@ function renderLogo(sourceName) {
 
   if (!logo) {
     return (
-      <span role="img" aria-label="Fonte não cadastrada">
-        🌐
-      </span>
+      <span aria-label="Fonte não cadastrada">Fonte</span>
     );
   }
 
@@ -101,7 +99,7 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
-  // Se não há resultado, mostrar estado vazio
+  
   if (!result) {
     const { title, description } = STATUS_COPY[status] ?? STATUS_COPY.idle;
     return (
@@ -109,7 +107,7 @@ export default function VerificationResult({ status, result }) {
         <div>
           {status === 'error' ? (
             <>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>!</div>
               <h3 style={{ color: '#dc2626', marginBottom: '0.5rem' }}>{title}</h3>
               {description && <p style={{ color: '#64748b' }}>{description}</p>}
             </>
@@ -124,7 +122,7 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
-  // ✅ CORREÇÃO: Extrair veracity_score do result (estava faltando!)
+  
   const {
     veracity_score,
     summary,
@@ -133,7 +131,7 @@ export default function VerificationResult({ status, result }) {
     confidence_level
   } = result;
 
-  // ✅ NOVO: Se score é 0 ou muito baixo, mostrar como erro sem roda
+  
   if (veracity_score === 0 || (veracity_score < 15 && summary && summary.includes('insuficientes'))) {
     return (
       <div className="card card--result">
@@ -150,7 +148,7 @@ export default function VerificationResult({ status, result }) {
             border: '1px solid rgba(239, 68, 68, 0.2)',
             marginTop: '1rem'
           }}>
-            <div style={{ fontSize: '2.5rem' }}>⚠️</div>
+            <div style={{ fontSize: '2.5rem' }}>!</div>
             <div>
               <h3 style={{ margin: 0, color: '#dc2626', fontSize: '1.1rem' }}>
                 Dados insuficientes para validação
@@ -177,7 +175,7 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
-  // Determinar nível baseado no score
+  
   const getConfidenceLevel = (score) => {
     if (score >= 70) return 'alto';
     if (score >= 40) return 'medio';
@@ -190,21 +188,17 @@ export default function VerificationResult({ status, result }) {
     <>
       <div className="card card--result">
         <div className="result__content">
-          {/* Título */}
           <div className="result__label">PERCENTUAL DE VERACIDADE</div>
           
-          {/* Porcentagem grande + Gauge */}
           <div className="result__score-section">
             <h2 className="result__score">{Math.round(veracity_score)}%</h2>
             <VeracityGauge score={veracity_score} nivel={nivel} />
           </div>
 
-          {/* Justificativa */}
           <p className="result__summary">
             {summary || 'Análise concluída.'}
           </p>
 
-          {/* Sinais/Signals */}
           {Array.isArray(signals) && signals.length > 0 && (
             <ul className="result__signals">
               {signals.map((signal, index) => (
@@ -213,7 +207,6 @@ export default function VerificationResult({ status, result }) {
             </ul>
           )}
 
-          {/* Fontes consultadas */}
           {Array.isArray(related_sources) && related_sources.length > 0 && (
             <div className="result__sources">
               <h3>Fontes consultadas</h3>
@@ -237,14 +230,11 @@ export default function VerificationResult({ status, result }) {
             </div>
           )}
 
-          {/* Nível de confiança */}
           <div className={`confidence-badge confidence-badge--${nivel}`}>
             Nível de confiança: <strong>{confidence_level || nivel.toUpperCase()}</strong>
           </div>
         </div>
       </div>
-
-      {/* Modal */}
       {selectedSource && (
         <SourceModal 
           source={selectedSource} 

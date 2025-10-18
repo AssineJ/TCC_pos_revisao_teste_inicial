@@ -23,20 +23,20 @@ from config import Config
 import time
 import random
 
-# Novas bibliotecas
+                   
 try:
     import trafilatura
     TRAFILATURA_AVAILABLE = True
 except ImportError:
     TRAFILATURA_AVAILABLE = False
-    print("⚠️  trafilatura não disponível")
+    print("  trafilatura não disponível")
 
 try:
     from readability import Document
     READABILITY_AVAILABLE = True
 except ImportError:
     READABILITY_AVAILABLE = False
-    print("⚠️  readability-lxml não disponível")
+    print("  readability-lxml não disponível")
 
 
 class ContentExtractor:
@@ -51,11 +51,11 @@ class ContentExtractor:
     def extract(self, url):
         """Extrai conteúdo com 6 estratégias de fallback."""
         
-        # Validar URL
+                     
         if not self._validar_url(url):
             return self._resultado_erro(url, 'URL inválida')
         
-        # Obter HTML
+                    
         html = self._obter_html(url)
         if not html:
             return self._resultado_erro(url, 'Não foi possível obter HTML')
@@ -63,7 +63,7 @@ class ContentExtractor:
         melhor_resultado = None
         melhor_tamanho = 0
         
-        # ESTRATÉGIA 1: newspaper3k
+                                   
         resultado = self._extrair_newspaper(url)
         if resultado['sucesso']:
             tamanho = len(resultado['texto'].split())
@@ -72,9 +72,9 @@ class ContentExtractor:
             melhor_resultado = resultado
             melhor_tamanho = tamanho
         
-        # ESTRATÉGIA 2: trafilatura
+                                   
         if TRAFILATURA_AVAILABLE:
-            print("⚠️  Tentando trafilatura...")
+            print("  Tentando trafilatura...")
             resultado = self._extrair_trafilatura(html, url)
             if resultado['sucesso']:
                 tamanho = len(resultado['texto'].split())
@@ -84,8 +84,8 @@ class ContentExtractor:
                     melhor_resultado = resultado
                     melhor_tamanho = tamanho
         
-        # ESTRATÉGIA 3: AMP
-        print("⚠️  Tentando AMP...")
+                           
+        print("  Tentando AMP...")
         resultado = self._extrair_amp(html, url)
         if resultado['sucesso']:
             tamanho = len(resultado['texto'].split())
@@ -95,9 +95,9 @@ class ContentExtractor:
                 melhor_resultado = resultado
                 melhor_tamanho = tamanho
         
-        # ESTRATÉGIA 4: readability
+                                   
         if READABILITY_AVAILABLE:
-            print("⚠️  Tentando readability...")
+            print("  Tentando readability...")
             resultado = self._extrair_readability(html, url)
             if resultado['sucesso']:
                 tamanho = len(resultado['texto'].split())
@@ -107,9 +107,9 @@ class ContentExtractor:
                     melhor_resultado = resultado
                     melhor_tamanho = tamanho
         
-        # ESTRATÉGIA 5: Globo-specific
-        if 'globo.com' in url.lower():
-            print("⚠️  Site Globo, tentando extrator específico...")
+                                      
+        if 'globo.com'in url.lower():
+            print("  Site Globo, tentando extrator específico...")
             resultado = self._extrair_globo(html, url)
             if resultado['sucesso']:
                 tamanho = len(resultado['texto'].split())
@@ -119,8 +119,8 @@ class ContentExtractor:
                     melhor_resultado = resultado
                     melhor_tamanho = tamanho
         
-        # ESTRATÉGIA 6: BeautifulSoup genérico
-        print("⚠️  Tentando BeautifulSoup genérico...")
+                                              
+        print("  Tentando BeautifulSoup genérico...")
         resultado = self._extrair_beautifulsoup(url, html)
         if resultado['sucesso']:
             tamanho = len(resultado['texto'].split())
@@ -207,7 +207,7 @@ class ContentExtractor:
         """Extração de versão AMP."""
         try:
             soup = BeautifulSoup(html, 'lxml')
-            amp_link = soup.find('link', rel=lambda x: x and 'amphtml' in str(x).lower())
+            amp_link = soup.find('link', rel=lambda x: x and 'amphtml'in str(x).lower())
             
             if amp_link and amp_link.get('href'):
                 amp_url = amp_link['href']
@@ -284,7 +284,7 @@ class ContentExtractor:
                 
                 soup = BeautifulSoup(html, 'lxml')
                 
-                # Título
+                        
                 titulo = None
                 meta_title = soup.find('meta', property='og:title')
                 if meta_title and meta_title.get('content'):
@@ -298,7 +298,7 @@ class ContentExtractor:
                     if h1:
                         titulo = h1.get_text()
                 
-                # Texto
+                       
                 texto = None
                 article_tag = soup.find('article')
                 if article_tag:
@@ -349,7 +349,7 @@ def extrair_conteudo(url):
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("🧪 TESTE DO EXTRACTOR MELHORADO")
+    print("TESTE DO EXTRACTOR MELHORADO")
     print("=" * 70)
     print()
     
@@ -362,8 +362,8 @@ if __name__ == "__main__":
         print(f"Testando: {url}")
         resultado = extrair_conteudo(url)
         if resultado['sucesso']:
-            print(f"✅ Sucesso ({resultado['metodo_extracao']})")
+            print(f"Sucesso ({resultado['metodo_extracao']})")
             print(f"   {len(resultado['texto'])} caracteres")
         else:
-            print(f"❌ Falhou: {resultado['erro']}")
+            print(f"Falhou: {resultado['erro']}")
         print()

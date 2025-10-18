@@ -4,7 +4,7 @@ from modules.scraper import scrape_noticias
 from modules.semantic_analyzer import analisar_semantica
 
 print("=" * 70)
-print("🧪 TESTE INTEGRAÇÃO COMPLETA COM IA SEMÂNTICA")
+print("TESTE INTEGRAÇÃO COMPLETA COM IA SEMÂNTICA")
 print("=" * 70)
 print()
 
@@ -15,36 +15,36 @@ básicos em todo o Brasil. A medida será implementada pelo Ministério
 da Fazenda e deve beneficiar milhões de famílias brasileiras.
 """
 
-print("📝 Texto original:")
+print("Texto original:")
 print(texto_original.strip())
 print()
 
-# ETAPA 1: NLP
+              
 print("ETAPA 1: Processamento NLP...")
 resultado_nlp = processar_texto(texto_original)
-print(f"✅ Query gerada: {resultado_nlp['query_busca']}")
+print(f"Query gerada: {resultado_nlp['query_busca']}")
 print()
 
-# ETAPA 2: Busca
+                
 print("ETAPA 2: Buscando nas fontes...")
 resultado_busca = buscar_noticias(resultado_nlp['query_busca'])
-print(f"✅ Encontrados: {resultado_busca['metadata']['total_resultados']} resultados")
+print(f"Encontrados: {resultado_busca['metadata']['total_resultados']} resultados")
 print()
 
-# ETAPA 3: Scraping
+                   
 print("ETAPA 3: Extraindo conteúdo...")
 conteudos = scrape_noticias(resultado_busca)
-print(f"✅ Extraídos: {conteudos['metadata']['total_sucesso']} conteúdos")
+print(f"Extraídos: {conteudos['metadata']['total_sucesso']} conteúdos")
 print()
 
-# ETAPA 4: Análise Semântica (NOVO!)
+                                    
 print("ETAPA 4: Análise semântica com IA...")
 analise = analisar_semantica(texto_original, conteudos)
 print()
 
-# Mostrar resultados
+                    
 print("=" * 70)
-print("📊 RESULTADOS DA ANÁLISE SEMÂNTICA:")
+print("RESULTADOS DA ANÁLISE SEMÂNTICA:")
 print("=" * 70)
 print()
 
@@ -56,8 +56,8 @@ print(f"Apenas mencionam: {meta['apenas_mencionam']}")
 print(f"Não relacionados: {meta['nao_relacionados']}")
 print()
 
-# Mostrar top 3 mais similares
-print("🏆 TOP 3 MAIS SIMILARES:")
+                              
+print("TOP 3 MAIS SIMILARES:")
 print()
 
 todas_analises = []
@@ -70,7 +70,7 @@ for fonte_nome, fonte_analises in analise.items():
                     **a
                 })
 
-# Ordenar por similaridade
+                          
 todas_analises.sort(key=lambda x: x.get('similaridade', 0), reverse=True)
 
 for i, a in enumerate(todas_analises[:3], 1):
@@ -81,5 +81,5 @@ for i, a in enumerate(todas_analises[:3], 1):
     print()
 
 print("=" * 70)
-print("🎉 SISTEMA QUASE COMPLETO!")
+print("SISTEMA QUASE COMPLETO!")
 print("=" * 70)

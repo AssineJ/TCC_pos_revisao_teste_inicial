@@ -16,7 +16,7 @@ import re
 from config import Config
 
 
-# Variáveis globais para armazenar modelos carregados
+                                                     
 _nlp_model = None
 _stopwords_pt = None
 
@@ -26,12 +26,12 @@ def _carregar_spacy():
     global _nlp_model
     
     if _nlp_model is None:
-        print("📚 Carregando modelo spaCy (pt_core_news_lg)...")
+        print("Carregando modelo spaCy (pt_core_news_lg)...")
         try:
             _nlp_model = spacy.load(Config.SPACY_MODEL)
-            print("✅ Modelo spaCy carregado!")
+            print("Modelo spaCy carregado!")
         except OSError:
-            print("❌ ERRO: Modelo spaCy não encontrado!")
+            print("ERRO: Modelo spaCy não encontrado!")
             print("Execute: python -m spacy download pt_core_news_lg")
             raise
     
@@ -43,14 +43,14 @@ def _carregar_stopwords():
     global _stopwords_pt
     
     if _stopwords_pt is None:
-        print("📚 Carregando stopwords...")
+        print("Carregando stopwords...")
         try:
             nltk_stopwords = set(stopwords.words('portuguese'))
             custom_stopwords = set(Config.CUSTOM_STOPWORDS)
             _stopwords_pt = nltk_stopwords.union(custom_stopwords)
-            print(f"✅ {len(_stopwords_pt)} stopwords carregadas!")
+            print(f" {len(_stopwords_pt)} stopwords carregadas!")
         except LookupError:
-            print("❌ ERRO: Stopwords do NLTK não encontradas!")
+            print("ERRO: Stopwords do NLTK não encontradas!")
             print("Execute: python -c \"import nltk; nltk.download('stopwords')\"")
             raise
     
@@ -77,37 +77,37 @@ class NLPProcessor:
         Returns:
             dict: Informações extraídas
         """
-        # Limpar textos
+                       
         texto_limpo = self._limpar_texto(texto)
         titulo_limpo = self._limpar_texto(titulo) if titulo else None
         
-        # Processar com spaCy
-        print("🤖 Processando texto com IA (spaCy)...")
+                             
+        print("Processando texto com IA (spaCy)...")
         doc = self.nlp(texto_limpo)
         
-        # Extrair entidades e palavras-chave do texto
+                                                     
         entidades = self._extrair_entidades(doc)
         palavras_chave = self._extrair_palavras_chave(doc)
         
-        # Se tiver título, processar também
+                                           
         if titulo_limpo:
             doc_titulo = self.nlp(titulo_limpo)
             entidades_titulo = self._extrair_entidades(doc_titulo)
             palavras_titulo = self._extrair_palavras_chave(doc_titulo)
             
-            # Gerar query priorizando título
+                                            
             query_busca = self._gerar_query_com_titulo(
                 entidades_titulo, palavras_titulo,
                 entidades, palavras_chave
             )
         else:
-            # Gerar query apenas com texto
+                                          
             query_busca = self._gerar_query(entidades, palavras_chave)
         
-        # Remover stopwords
+                           
         texto_sem_stopwords = self._remover_stopwords(texto_limpo)
         
-        # Estatísticas
+                      
         estatisticas = {
             'total_tokens': len(doc),
             'total_entidades': len(entidades),
@@ -149,7 +149,7 @@ class NLPProcessor:
                     'importancia': self._calcular_importancia_entidade(ent)
                 })
         
-        # Remover duplicatas
+                            
         entidades_unicas = {}
         for ent in entidades:
             texto_lower = ent['texto'].lower()
@@ -197,24 +197,24 @@ class NLPProcessor:
         Gera query priorizando informações do título.
         Título tem mais peso por ser mais específico e relevante.
         """
-        # Priorizar título
+                          
         top_ent_titulo = [e['texto'] for e in entidades_titulo[:2]]
         top_pal_titulo = palavras_titulo[:3]
         
-        # Complementar com texto
+                                
         top_ent_texto = [e['texto'] for e in entidades_texto[:1]]
         top_pal_texto = palavras_texto[:2]
         
-        # Combinar (título primeiro)
+                                    
         termos = top_ent_titulo + top_pal_titulo + top_ent_texto + top_pal_texto
         
-        # Remover duplicatas mantendo ordem
+                                           
         termos_unicos = []
         for termo in termos:
             if termo.lower() not in [t.lower() for t in termos_unicos]:
                 termos_unicos.append(termo)
         
-        # Limitar a 6 termos
+                            
         query = ' '.join(termos_unicos[:6])
         return query
     
@@ -226,7 +226,7 @@ class NLPProcessor:
         
         termos_busca = top_entidades + top_palavras
         
-        # Remover duplicatas
+                            
         termos_unicos = []
         for termo in termos_busca:
             if termo.lower() not in [t.lower() for t in termos_unicos]:
@@ -265,7 +265,7 @@ def processar_texto(texto, titulo=None):
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("🧪 TESTANDO MÓDULO NLP PROCESSOR")
+    print("TESTANDO MÓDULO NLP PROCESSOR")
     print("=" * 70)
     print()
     
@@ -277,24 +277,24 @@ if __name__ == "__main__":
     
     titulo_teste = "Lula anuncia reforma tributária em Brasília"
     
-    print("📝 Texto de teste:")
+    print("Texto de teste:")
     print(texto_teste.strip())
     print()
-    print(f"📰 Título: {titulo_teste}")
+    print(f"Título: {titulo_teste}")
     print()
     
-    # Testar COM título
+                       
     print("Teste 1: COM título")
     print("-" * 70)
     resultado = processar_texto(texto_teste, titulo=titulo_teste)
     print(f"Query gerada: {resultado['query_busca']}")
     print()
     
-    # Testar SEM título
+                       
     print("Teste 2: SEM título")
     print("-" * 70)
     resultado2 = processar_texto(texto_teste)
     print(f"Query gerada: {resultado2['query_busca']}")
     print()
     
-    print("✅ Testes concluídos!")
+    print("Testes concluídos!")

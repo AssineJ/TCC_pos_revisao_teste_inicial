@@ -1,13 +1,13 @@
 from config import Config
 
 print("=" * 70)
-print("🧪 TESTE ISOLADO DO SERPAPI")
+print("TESTE ISOLADO DO SERPAPI")
 print("=" * 70)
 print()
 
-# Verificar se chave está configurada
+                                     
 if not Config.SERPAPI_KEY:
-    print("❌ SERPAPI_KEY não configurada!")
+    print("SERPAPI_KEY não configurada!")
     print()
     print("Para testar:")
     print("1. Crie conta em https://serpapi.com/")
@@ -16,11 +16,11 @@ if not Config.SERPAPI_KEY:
     print("   SERPAPI_KEY=sua_chave_aqui")
     exit()
 
-print(f"✅ SERPAPI_KEY configurada!")
+print(f"SERPAPI_KEY configurada!")
 print(f"   Chave: {Config.SERPAPI_KEY[:10]}...{Config.SERPAPI_KEY[-5:]}")
 print()
 
-# Testar busca simples
+                      
 from modules.searcher import SearchEngine
 
 engine = SearchEngine()
@@ -28,20 +28,20 @@ engine = SearchEngine()
 query = "Lula Brasil reforma"
 site = "g1.globo.com"
 
-print(f"🔍 Testando busca:")
+print(f"Testando busca:")
 print(f"   Query: {query}")
 print(f"   Site: {site}")
 print()
 
-# Mudar para modo serpapi
+                         
 Config.SEARCH_MODE = 'serpapi'
 
 try:
-    print("⏳ Buscando...")
+    print("Buscando...")
     resultados = engine.buscar(query, site)
     
     if resultados:
-        print(f"✅ SUCESSO! Encontrados {len(resultados)} resultados")
+        print(f"SUCESSO! Encontrados {len(resultados)} resultados")
         print()
         
         for i, r in enumerate(resultados, 1):
@@ -51,17 +51,17 @@ try:
             print()
         
         print("=" * 70)
-        print("🎉 SERPAPI FUNCIONANDO PERFEITAMENTE!")
+        print("SERPAPI FUNCIONANDO PERFEITAMENTE!")
         print("=" * 70)
         print()
-        print(f"📊 Requisições usadas: {engine.serpapi_count}/100")
+        print(f"Requisições usadas: {engine.serpapi_count}/100")
     
     else:
-        print("⚠️  Nenhum resultado encontrado")
+        print("  Nenhum resultado encontrado")
         print("   Isso pode ser normal se não há notícias sobre o tema")
 
 except Exception as e:
-    print(f"❌ ERRO: {e}")
+    print(f"ERRO: {e}")
     print()
     print("Possíveis causas:")
     print("   • Chave API inválida")

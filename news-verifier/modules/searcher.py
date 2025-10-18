@@ -1,4 +1,4 @@
-# modules/searcher.py
+                     
 from __future__ import annotations
 
 import os
@@ -19,26 +19,26 @@ from bs4 import BeautifulSoup
 
 from config import Config
 
-# -----------------------------
-# Opicionais (nem sempre instalados)
-# -----------------------------
+                               
+                                    
+                               
 try:
-    from serpapi import GoogleSearch  # google-search-results
+    from serpapi import GoogleSearch                         
     SERPAPI_AVAILABLE = True
 except Exception:
     SERPAPI_AVAILABLE = False
 
 try:
-    # googlesearch-python
+                         
     from googlesearch import search as google_search
     GSEARCH_AVAILABLE = True
 except Exception:
     GSEARCH_AVAILABLE = False
 
 
-# ============================================================
-# Utils de cache simples em arquivo (por query+site)
-# ============================================================
+                                                              
+                                                    
+                                                              
 
 def _cache_dir() -> str:
     d = os.path.join(".cache", "search")
@@ -61,7 +61,7 @@ def cache_get(query: str, site: str) -> Optional[List[Dict[str, Any]]]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
-        # expiração
+                   
         ttl = getattr(Config, "CACHE_EXPIRATION", 3600)
         if time.time() - payload.get("_ts", 0) > ttl:
             return None
@@ -81,9 +81,9 @@ def cache_set(query: str, site: str, results: List[Dict[str, Any]]) -> None:
         pass
 
 
-# ============================================================
-# Normalização de resultados
-# ============================================================
+                                                              
+                            
+                                                              
 
 def _norm_result(title: str, url: str, snippet: str = "") -> Dict[str, Any]:
     return {
@@ -144,7 +144,7 @@ def _extract_focus_phrases(query: str, keywords: List[str]) -> Tuple[List[str], 
 
     base = _clean_text(query)
     if base:
-        # Captura sequências com iniciais maiúsculas (nomes próprios)
+                                                                     
         padrao = r"((?:[A-ZÁÂÃÀÉÊÍÓÔÕÚÜ][\wÁ-ú]+(?:\s+[A-ZÁÂÃÀÉÊÍÓÔÕÚÜ][\wÁ-ú]+)+))"
         for match in re.finditer(padrao, query):
             trecho = match.group(1).strip()
@@ -154,7 +154,7 @@ def _extract_focus_phrases(query: str, keywords: List[str]) -> Tuple[List[str], 
                 if norm:
                     norm_phrases.append(norm)
 
-    # Combinações adjacentes das keywords em ordem de relevância
+                                                                
     for tamanho in range(min(4, len(keywords)), 1, -1):
         for idx in range(0, len(keywords) - tamanho + 1):
             trecho = " ".join(keywords[idx : idx + tamanho])
@@ -166,7 +166,7 @@ def _extract_focus_phrases(query: str, keywords: List[str]) -> Tuple[List[str], 
             if norm and norm not in norm_phrases:
                 norm_phrases.append(norm)
 
-    # Remove duplicados preservando ordem
+                                         
     def _unique(seq: List[str]) -> List[str]:
         vistos = set()
         saida = []
@@ -200,7 +200,7 @@ def _gerar_variacoes_query(query: str, keywords: List[str], focus_phrases: List[
         frase_limpa = _clean_text(frase)
         if frase_limpa and frase_limpa not in variantes:
             variantes.append(frase_limpa)
-        quoted = f'"{frase_limpa}"' if frase_limpa else ""
+        quoted = f'"{frase_limpa}"'if frase_limpa else ""
         if quoted and quoted not in variantes:
             variantes.append(quoted)
 
@@ -278,9 +278,9 @@ def _rank_results_by_keywords(
     return ordenados
 
 
-# ============================================================
-# Mecanismo principal de busca
-# ============================================================
+                                                              
+                              
+                                                              
 
 @dataclass
 class SearchEngine:
@@ -292,7 +292,7 @@ class SearchEngine:
         if self.headers is None:
             self.headers = dict(Config.DEFAULT_HEADERS)
 
-    # --------------- API ---------------
+                                         
 
     def buscar(self, query: str, dominio: str) -> List[Dict[str, Any]]:
         """Busca resultados para um domínio específico."""
@@ -347,7 +347,7 @@ class SearchEngine:
         time.sleep(self.delay_between)
         return resultados_final[: self.max_per_source]
 
-    # --------------- providers ---------------
+                                               
 
     def _search_serpapi(self, query: str, dominio: str) -> List[Dict[str, Any]]:
         key = getattr(Config, "SERPAPI_KEY", None)
@@ -374,7 +374,7 @@ class SearchEngine:
     def _search_googlesearch(self, query: str, dominio: str) -> List[Dict[str, Any]]:
         if not GSEARCH_AVAILABLE:
             return []
-        # googlesearch-python já implementa paginação/UA
+                                                        
         q = f"site:{dominio} {query}"
         out = []
         try:
@@ -415,7 +415,7 @@ class SearchEngine:
                     continue
                 link = link_tag.get_text(strip=True)
                 title = title_tag.get_text(strip=True)
-                if "url=" in link:
+                if "url="in link:
                     m = re.search(r"url=(.*?)&", link)
                     if m:
                         link = requests.utils.unquote(m.group(1))
@@ -432,7 +432,7 @@ class SearchEngine:
 
     def _search_direct(self, query: str, dominio: str) -> List[Dict[str, Any]]:
         """
-        Tentativa simples: se a fonte tem 'url_busca' configurado, usa.
+        Tentativa simples: se a fonte tem 'url_busca'configurado, usa.
         Caso contrário, tenta homepage + filtro por query na âncora.
         """
         url_busca = None
@@ -451,12 +451,12 @@ class SearchEngine:
                 if resp.ok:
                     out.extend(self._parse_links_from_html(resp.text, dominio))
             else:
-                # fallback: homepage
+                                    
                 resp = session.get(f"https://{dominio}", timeout=Config.REQUEST_TIMEOUT)
                 if resp.ok:
                     out.extend(self._parse_links_from_html(resp.text, dominio))
 
-            # enriquecer com título/snippet
+                                           
             final = []
             for r in out:
                 title, snippet = self._fetch_title_snippet(r["url"], session=session)
@@ -504,7 +504,7 @@ class SearchEngine:
 
         return resultados
 
-    # --------------- helpers ---------------
+                                             
 
     def _fetch_title_snippet(self, url: str, session: Optional[requests.Session] = None) -> (str, str):
         sess = session or requests.Session()
@@ -540,7 +540,7 @@ class SearchEngine:
         return out
 
     def _mock_results(self, dominio: str, query: str) -> List[Dict[str, Any]]:
-        # Gera alguns resultados simulados úteis para testes offline
+                                                                    
         base = f"https://{dominio}"
         seeds = [
             ("Matéria relacionada: " + query[:50], f"{base}/noticia-simulada-1", "Resumo simulado 1"),
@@ -551,9 +551,9 @@ class SearchEngine:
         return [_norm_result(t, u, s) for (t, u, s) in seeds[: self.max_per_source]]
 
 
-# ============================================================
-# Funções de alto nível usadas pelo app
-# ============================================================
+                                                              
+                                       
+                                                              
 
 def buscar_noticias(query_busca: str) -> Dict[str, Any]:
     """
@@ -586,9 +586,9 @@ def buscar_noticias(query_busca: str) -> Dict[str, Any]:
     return resultados
 
 
-# ============================================================
-# VERSÃO PARALELA (adição solicitada)
-# ============================================================
+                                                              
+                                     
+                                                              
 
 def _buscar_em_fonte(fonte: Dict[str, Any], query_busca: str) -> (str, List[Dict[str, Any]]):
     engine = SearchEngine()
@@ -602,7 +602,7 @@ def _buscar_em_fonte(fonte: Dict[str, Any], query_busca: str) -> (str, List[Dict
 def buscar_noticias_paralelo(query_busca: str) -> Dict[str, Any]:
     """
     Busca em TODAS as fontes simultaneamente, retornando no mesmo formato
-    de buscar_noticias(), mas com 'modo_busca' indicando 'parallel/...'.
+    de buscar_noticias(), mas com 'modo_busca'indicando 'parallel/...'.
     """
     fontes = [f for f in Config.TRUSTED_SOURCES if f.get("ativo", True)]
     inicio = time.time()
@@ -632,13 +632,13 @@ def buscar_noticias_paralelo(query_busca: str) -> Dict[str, Any]:
     return resultados
 
 
-# ============================================================
-# CLI rápido para teste manual
-# ============================================================
+                                                              
+                              
+                                                              
 
 if __name__ == "__main__":
     q = "Lula ONU FAO Roma"
-    print("🔎 Teste de buscar_noticias()")
+    print("Teste de buscar_noticias()")
     out = buscar_noticias(q)
     print(json.dumps(out["metadata"], ensure_ascii=False, indent=2))
     for fonte, itens in out.items():
@@ -648,6 +648,6 @@ if __name__ == "__main__":
         for it in itens:
             print("-", it["title"], "|", it["url"])
 
-    print("\n🔎 Teste de buscar_noticias_paralelo()")
+    print("\n Teste de buscar_noticias_paralelo()")
     outp = buscar_noticias_paralelo(q)
     print(json.dumps(outp["metadata"], ensure_ascii=False, indent=2))

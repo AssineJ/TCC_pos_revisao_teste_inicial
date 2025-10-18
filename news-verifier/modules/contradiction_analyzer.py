@@ -11,7 +11,7 @@ Data: 2025
 import re
 from typing import Dict, List
 
-# Palavras que indicam negação/contradição
+                                          
 NEGATION_WORDS = [
     'não', 'nao', 'nunca', 'jamais', 'nenhum', 'nenhuma',
     'falso', 'falsa', 'mentira', 'fake', 'desmentido',
@@ -20,14 +20,14 @@ NEGATION_WORDS = [
     'boato', 'rumor', 'desinformação', 'fake news'
 ]
 
-# Palavras que indicam confirmação forte
+                                        
 CONFIRMATION_WORDS = [
     'confirma', 'confirmou', 'comprova', 'comprovado',
     'verdadeiro', 'verdade', 'oficial', 'oficialmente',
     'anunciou', 'anunciado', 'declarou', 'afirmou'
 ]
 
-# Padrões que indicam desmentido
+                                
 DEBUNK_PATTERNS = [
     r'é\s+falso',
     r'não\s+é\s+verdade',
@@ -59,34 +59,34 @@ def detectar_contradicao(texto_original: str, texto_fonte: str) -> Dict:
     texto_fonte_lower = texto_fonte.lower()
     texto_original_lower = texto_original.lower()
     
-    # Contar palavras de negação
+                                
     palavras_negacao_encontradas = []
     for word in NEGATION_WORDS:
         if word in texto_fonte_lower:
             palavras_negacao_encontradas.append(word)
     
-    # Verificar padrões de desmentido
+                                     
     patterns_encontrados = []
     for pattern in DEBUNK_PATTERNS:
         if re.search(pattern, texto_fonte_lower):
             patterns_encontrados.append(pattern)
     
-    # Calcular score de contradição
+                                   
     score_contradicao = 0.0
     
-    # +0.2 para cada palavra de negação (máx 5)
+                                               
     score_contradicao += min(len(palavras_negacao_encontradas) * 0.2, 1.0)
     
-    # +0.5 para cada padrão de desmentido
+                                         
     score_contradicao += len(patterns_encontrados) * 0.5
     
-    # Normalizar (máx 1.0)
+                          
     score_contradicao = min(score_contradicao, 1.0)
     
-    # Decidir se contradiz (threshold 0.3)
+                                          
     contradiz = score_contradicao >= 0.3
     
-    # Gerar motivo
+                  
     motivo = ""
     if contradiz:
         if patterns_encontrados:
@@ -121,23 +121,23 @@ def analisar_sentimento_fonte(texto_fonte: str, entidades_originais: List[str]) 
     
     texto_lower = texto_fonte.lower()
     
-    # Para cada entidade, verificar contexto ao redor
+                                                     
     contextos_negativos = 0
     contextos_positivos = 0
     
     for entidade in entidades_originais:
         entidade_lower = entidade.lower()
         
-        # Encontrar ocorrências da entidade
+                                           
         ocorrencias = [m.start() for m in re.finditer(re.escape(entidade_lower), texto_lower)]
         
         for pos in ocorrencias:
-            # Pegar contexto de 100 chars antes e depois
+                                                        
             inicio = max(0, pos - 100)
             fim = min(len(texto_lower), pos + len(entidade_lower) + 100)
             contexto = texto_lower[inicio:fim]
             
-            # Contar palavras negativas no contexto
+                                                   
             neg_count = sum(1 for word in NEGATION_WORDS if word in contexto)
             pos_count = sum(1 for word in CONFIRMATION_WORDS if word in contexto)
             
@@ -146,7 +146,7 @@ def analisar_sentimento_fonte(texto_fonte: str, entidades_originais: List[str]) 
             elif pos_count > neg_count:
                 contextos_positivos += 1
     
-    # Calcular sentimento geral
+                               
     total = contextos_negativos + contextos_positivos
     if total == 0:
         sentimento = "neutro"
@@ -188,14 +188,14 @@ def ajustar_score_por_contradicao(
             "justificativa": "Nenhuma contradição detectada"
         }
     
-    # Calcular penalidade baseada na confiança
+                                              
     confianca = analise_contradicao["confianca"]
     
-    # Penalidade severa: reduz até 60 pontos
+                                            
     penalidade = int(confianca * 60)
     
-    # Aplicar penalidade
-    score_ajustado = max(5, score_original - penalidade)  # Mínimo 5%
+                        
+    score_ajustado = max(5, score_original - penalidade)             
     
     justificativa = f"ALERTA: Fontes contradizem a informação. {analise_contradicao['motivo']}. Score reduzido em {penalidade} pontos."
     
@@ -206,9 +206,9 @@ def ajustar_score_por_contradicao(
     }
 
 
-# Função de teste
+                 
 if __name__ == "__main__":
-    # Teste 1: Contradição clara
+                                
     texto_fake = "Vacinas contra COVID-19 matam instantaneamente"
     texto_fonte = "É falso que vacinas contra COVID-19 causam morte instantânea. Não há evidências científicas."
     
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     print(f"  Motivo: {resultado['motivo']}")
     print()
     
-    # Teste 2: Confirmação
+                          
     texto_real = "Presidente anuncia aumento do salário mínimo"
     texto_fonte2 = "Presidente confirmou oficialmente o aumento do salário mínimo em coletiva"
     
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     print(f"  Motivo: {resultado2['motivo']}")
     print()
     
-    # Teste 3: Ajuste de score
+                              
     ajuste = ajustar_score_por_contradicao(49, resultado)
     print("Teste 3 - Ajuste de Score:")
     print(f"  Score original: 49%")

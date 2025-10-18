@@ -13,18 +13,18 @@ from modules.filters import filtrar_busca, filtrar_scraping
 from modules.scraper import scrape_noticias
 from modules.semantic_analyzer import analisar_semantica
 from modules.scorer import calcular_veracidade
-from modules.text_validator import validar_qualidade_texto, validar_url  # ✅ VALIDAÇÃO
+from modules.text_validator import validar_qualidade_texto, validar_url              
 import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Criar instância do Flask
+                          
 app = Flask(__name__)
 
-# Habilitar CORS
+                
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-# Configuração de logging
+                         
 log_level = getattr(logging, Config.LOG_LEVEL.upper(), logging.DEBUG)
 logging.basicConfig(level=log_level, format=Config.LOG_FORMAT)
 
@@ -51,7 +51,7 @@ def log_info(message: str = ""):
     else:
         builtins.print()
 
-# Carregar configurações do config.py
+                                     
 app.config.from_object(Config)
 
 
@@ -59,11 +59,11 @@ app.config.from_object(Config)
 def verificar_noticia():
     """
     Endpoint principal que recebe uma notícia e retorna análise de veracidade.
-    ✅ COM VALIDAÇÃO DE QUALIDADE DE TEXTO
+     COM VALIDAÇÃO DE QUALIDADE DE TEXTO
     """
 
     try:
-        # ETAPA 1: VALIDAR DADOS
+                                
         dados = request.get_json()
 
         if not dados:
@@ -72,9 +72,9 @@ def verificar_noticia():
                 "codigo": "INVALID_JSON"
             }), 400
 
-        if 'tipo' not in dados or 'conteudo' not in dados:
+        if 'tipo'not in dados or 'conteudo'not in dados:
             return jsonify({
-                "erro": "Campos obrigatórios: 'tipo' e 'conteudo'",
+                "erro": "Campos obrigatórios: 'tipo'e 'conteudo'",
                 "codigo": "MISSING_FIELDS"
             }), 400
 
@@ -83,7 +83,7 @@ def verificar_noticia():
 
         if tipo not in ['url', 'texto']:
             return jsonify({
-                "erro": "Tipo deve ser 'url' ou 'texto'",
+                "erro": "Tipo deve ser 'url'ou 'texto'",
                 "codigo": "INVALID_TYPE"
             }), 400
 
@@ -106,32 +106,32 @@ def verificar_noticia():
             }), 422
 
         log_info(
-            f"📨 Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo.strip())}"
+            f"Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo.strip())}"
         )
 
-        # ========================================================================
-        # ✅ ETAPA 1.5: VALIDAR QUALIDADE DO CONTEÚDO (NOVO!)
-        # ========================================================================
+                                                                                  
+                                                           
+                                                                                  
         if tipo == 'url':
-            # Validar formato de URL
+                                    
             validacao_url = validar_url(conteudo)
             if not validacao_url['valido']:
-                log_info(f"❌ URL inválida: {validacao_url['motivo']}")
+                log_info(f"URL inválida: {validacao_url['motivo']}")
                 return jsonify({
                     "erro": "URL inválida",
                     "detalhes": validacao_url['motivo'],
                     "codigo": "INVALID_URL"
                 }), 422
         else:
-            # Validar qualidade do texto
-            log_info(f"🔍 Validando qualidade do texto...")
+                                        
+            log_info(f"Validando qualidade do texto...")
             validacao_texto = validar_qualidade_texto(conteudo)
             
             log_info(f"   Score qualidade: {validacao_texto['score_qualidade']}")
             log_info(f"   Problemas: {len(validacao_texto['problemas'])}")
             
             if not validacao_texto['valido']:
-                log_info(f"❌ Texto REJEITADO: {validacao_texto['motivo']}")
+                log_info(f"Texto REJEITADO: {validacao_texto['motivo']}")
                 return jsonify({
                     "erro": "Dados fornecidos insuficientes para validação",
                     "detalhes": validacao_texto['motivo'],
@@ -140,15 +140,15 @@ def verificar_noticia():
                     "codigo": "INVALID_TEXT_QUALITY"
                 }), 422
             
-            log_info(f"✅ Texto validado com sucesso (qualidade: {validacao_texto['score_qualidade']})")
+            log_info(f"Texto validado com sucesso (qualidade: {validacao_texto['score_qualidade']})")
 
-        # ETAPA 2: EXTRAIR CONTEÚDO (se for URL)
+                                                
         texto_para_analise = ""
         titulo_noticia = ""
-        url_original = conteudo if tipo == 'url' else None
+        url_original = conteudo if tipo == 'url'else None
 
         if tipo == 'url':
-            log_info(f"📥 Extraindo conteúdo de: {conteudo}")
+            log_info(f"Extraindo conteúdo de: {conteudo}")
             resultado_extracao = extrair_conteudo(conteudo)
 
             if not resultado_extracao['sucesso']:
@@ -160,81 +160,81 @@ def verificar_noticia():
 
             texto_para_analise = resultado_extracao['texto']
             titulo_noticia = resultado_extracao['titulo']
-            log_info(f"✅ Conteúdo extraído: {len(texto_para_analise)} caracteres")
+            log_info(f"Conteúdo extraído: {len(texto_para_analise)} caracteres")
 
         else:
             texto_para_analise = conteudo
             titulo_noticia = texto_para_analise[:100] + "..."
 
-        # ETAPA 3: PROCESSAR COM NLP (IA!)
-        log_info(f"🤖 Processando texto com IA...")
+                                          
+        log_info(f"Processando texto com IA...")
         resultado_nlp = processar_texto(texto_para_analise)
 
-        log_info(f"✅ NLP concluído:")
+        log_info(f"NLP concluído:")
         log_info(f"   - {len(resultado_nlp['entidades'])} entidades encontradas")
         log_info(f"   - {len(resultado_nlp['palavras_chave'])} palavras-chave extraídas")
         log_info(f"   - Query de busca: {resultado_nlp['query_busca']}")
 
-        # ETAPA 4: BUSCAR NAS FONTES CONFIÁVEIS
-        log_info(f"🔍 Buscando nas fontes confiáveis...")
+                                               
+        log_info(f"Buscando nas fontes confiáveis...")
         resultado_busca = buscar_noticias(resultado_nlp['query_busca'])
 
-        log_info(f"✅ Busca concluída:")
+        log_info(f"Busca concluída:")
         log_info(f"   - Total de resultados: {resultado_busca['metadata']['total_resultados']}")
         log_info(f"   - Fontes com sucesso: {resultado_busca['metadata']['fontes_com_sucesso']}/{resultado_busca['metadata']['total_fontes']}")
 
-        # APLICAR FILTROS NA BUSCA
+                                  
         resultado_busca_filtrado = filtrar_busca(resultado_busca)
 
-        log_info(f"✅ Filtros aplicados:")
+        log_info(f"Filtros aplicados:")
         log_info(f"   - Mantidos: {resultado_busca_filtrado['metadata']['total_resultados']}")
         log_info(f"   - Filtrados: {resultado_busca_filtrado['metadata'].get('total_filtrados', 0)}")
 
-        # ETAPA 5: EXTRAIR CONTEÚDO DAS URLs ENCONTRADAS
-        log_info(f"📥 Extraindo conteúdo das notícias encontradas...")
+                                                        
+        log_info(f"Extraindo conteúdo das notícias encontradas...")
         resultado_scraping = scrape_noticias(resultado_busca_filtrado)
 
-        log_info(f"✅ Scraping concluído:")
+        log_info(f"Scraping concluído:")
         log_info(f"   - Total processado: {resultado_scraping['metadata']['total_scraped']}")
         log_info(f"   - Sucessos: {resultado_scraping['metadata']['total_sucesso']}")
         log_info(f"   - Taxa: {resultado_scraping['metadata']['taxa_sucesso']:.1f}%")
 
-        # APLICAR FILTROS NO SCRAPING
+                                     
         resultado_scraping_filtrado = filtrar_scraping(resultado_scraping, texto_para_analise)
 
-        log_info(f"✅ Filtros aplicados:")
+        log_info(f"Filtros aplicados:")
         log_info(f"   - Mantidos: {resultado_scraping_filtrado['metadata']['total_sucesso']}")
         log_info(f"   - Filtrados: {resultado_scraping_filtrado['metadata'].get('total_filtrados', 0)}")
 
-        # ETAPA 6: ANÁLISE SEMÂNTICA COM IA (COM DETECÇÃO DE CONTRADIÇÃO)
-        log_info(f"🔬 Analisando similaridade semântica com IA...")
+                                                                         
+        log_info(f"Analisando similaridade semântica com IA...")
         resultado_analise = analisar_semantica(texto_para_analise, resultado_scraping_filtrado)
 
-        log_info(f"✅ Análise semântica concluída:")
+        log_info(f"Análise semântica concluída:")
         
         contradizem = resultado_analise['metadata'].get('contradizem', 0)
         if contradizem > 0:
-            log_info(f"   - ⚠️  CONTRADIZEM: {contradizem}")
+            log_info(f"   -   CONTRADIZEM: {contradizem}")
         
         log_info(f"   - Confirmam forte: {resultado_analise['metadata']['confirmam_forte']}")
         log_info(f"   - Confirmam parcial: {resultado_analise['metadata']['confirmam_parcial']}")
         log_info(f"   - Apenas mencionam: {resultado_analise['metadata']['apenas_mencionam']}")
 
-        # ETAPA 7: CÁLCULO DE VERACIDADE FINAL (COM PENALIDADE POR CONTRADIÇÃO)
-        log_info(f"🎯 Calculando veracidade final...")
+                                                                               
+        log_info(f"Calculando veracidade final...")
         resultado_score = calcular_veracidade(resultado_analise, {
             'tipo_entrada': tipo,
             'tamanho_conteudo': len(texto_para_analise),
             'total_fontes_buscadas': resultado_busca['metadata']['total_resultados']
         })
 
-        log_info(f"✅ Score calculado: {resultado_score['veracidade']}%")
+        log_info(f"Score calculado: {resultado_score['veracidade']}%")
         log_info(f"   Nível de confiança: {resultado_score['nivel_confianca']}")
         
         if contradizem > 0:
-            log_info(f"   ⚠️  ALERTA: {contradizem} fonte(s) contradizem a informação!")
+            log_info(f"     ALERTA: {contradizem} fonte(s) contradizem a informação!")
 
-        # Preparar fontes consultadas
+                                     
         fontes_consultadas = []
 
         urls_originais_busca = {}
@@ -275,7 +275,7 @@ def verificar_noticia():
 
         fontes_consultadas.sort(key=lambda x: x['similaridade'], reverse=True)
 
-        # Montar resposta final
+                               
         meta_analise = resultado_analise['metadata']
 
         resposta = {
@@ -315,7 +315,7 @@ def verificar_noticia():
                 "scraping_realizado": True,
                 "analise_semantica_realizada": True,
                 "deteccao_contradicao_ativa": True,
-                "validacao_texto_ativa": True,  # ✅ NOVO
+                "validacao_texto_ativa": True,         
                 "scoring_completo": True,
                 "total_resultados_busca": resultado_busca['metadata']['total_resultados'],
                 "total_scraped": resultado_scraping_filtrado['metadata']['total_scraped'],
@@ -325,11 +325,11 @@ def verificar_noticia():
         }
 
         log_info(
-            f"🎉 Análise concluída com sucesso | veracidade={resposta['veracidade']}% | fontes={len(fontes_consultadas)}"
+            f"Análise concluída com sucesso | veracidade={resposta['veracidade']}% | fontes={len(fontes_consultadas)}"
         )
         
         if contradizem > 0:
-            log_info(f"🚨 ALERTA FINAL: Detectada provável FAKE NEWS!")
+            log_info(f"ALERTA FINAL: Detectada provável FAKE NEWS!")
 
         return jsonify(resposta), 200
 
@@ -357,7 +357,7 @@ def health_check():
             "scraper",
             "semantic_analyzer (com detecção de contradição)",
             "scorer (com penalidade por contradição)",
-            "text_validator (validação de qualidade)"  # ✅ NOVO
+            "text_validator (validação de qualidade)"         
         ]
     }), 200
 
@@ -382,35 +382,35 @@ def index():
             "newspaper3k",
             "BeautifulSoup",
             "Detecção de Contradição",
-            "Validação de Qualidade de Texto"  # ✅ NOVO
+            "Validação de Qualidade de Texto"         
         ],
         "novidades": [
-            "✅ Detecção automática de contradições",
-            "✅ Penalidade severa para fake news",
-            "✅ Validação de qualidade de texto",  # ✅ NOVO
-            "✅ Rejeita textos repetitivos/inválidos"  # ✅ NOVO
+            "Detecção automática de contradições",
+            "Penalidade severa para fake news",
+            "Validação de qualidade de texto",         
+            "Rejeita textos repetitivos/inválidos"         
         ]
     }), 200
 
 
 if __name__ == '__main__':
     log_info("=" * 70)
-    log_info("🚀 Iniciando News Verifier API...")
+    log_info("Iniciando News Verifier API...")
     log_info("=" * 70)
-    log_info(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
-    log_info(f"📍 Versão: 1.0-final-validation (COM VALIDAÇÃO DE TEXTO)")
-    log_info(f"📍 Pressione Ctrl+C para parar o servidor")
+    log_info(f"Servidor rodando em: http://127.0.0.1:{Config.PORT}")
+    log_info(f"Versão: 1.0-final-validation (COM VALIDAÇÃO DE TEXTO)")
+    log_info(f"Pressione Ctrl+C para parar o servidor")
     log_info("=" * 70)
     log_info()
-    log_info("✅ Módulos carregados:")
-    log_info("   1. ✅ Extractor (URLs)")
-    log_info("   2. ✅ NLP Processor (spaCy)")
-    log_info("   3. ✅ Searcher (Busca Híbrida)")
-    log_info("   4. ✅ Filters (Anti-paywall/404)")
-    log_info("   5. ✅ Scraper (Conteúdo)")
-    log_info("   6. ✅ Semantic Analyzer (IA + Detecção de Contradição)")
-    log_info("   7. ✅ Scorer (Veracidade + Penalidade por Fake News)")
-    log_info("   8. ✅ Text Validator (Validação de Qualidade)")  # ✅ NOVO
+    log_info("Módulos carregados:")
+    log_info("   1.  Extractor (URLs)")
+    log_info("   2.  NLP Processor (spaCy)")
+    log_info("   3.  Searcher (Busca Híbrida)")
+    log_info("   4.  Filters (Anti-paywall/404)")
+    log_info("   5.  Scraper (Conteúdo)")
+    log_info("   6.  Semantic Analyzer (IA + Detecção de Contradição)")
+    log_info("   7.  Scorer (Veracidade + Penalidade por Fake News)")
+    log_info("   8.  Text Validator (Validação de Qualidade)")         
     log_info("=" * 70)
     log_info()
 

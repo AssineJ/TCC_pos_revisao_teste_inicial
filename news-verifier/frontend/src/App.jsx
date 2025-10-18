@@ -14,7 +14,6 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Header Minimalista */}
       <header className="header">
         <div className="header__content">
           <h1 className="header__title">NewsTrust</h1>
@@ -24,10 +23,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Conteúdo Principal */}
       <main className="main">
         <div className="container">
-          {/* Verificador */}
           <section className="verifier">
             <VerificationForm 
               status={status} 
@@ -38,7 +35,6 @@ export default function App() {
             <VerificationResult status={status} result={result} />
           </section>
 
-          {/* Como Utilizar */}
           <section className="how-to">
             <h2>Como utilizar</h2>
             <ol className="how-to__list">
@@ -59,10 +55,9 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer Minimalista */}
       <footer className="footer">
         <p>
-          NewsTrust © {new Date().getFullYear()} • Verificação com IA e Fontes Confiáveis
+          NewsTrust {new Date().getFullYear()} - Verificação com IA e Fontes Confiáveis
         </p>
       </footer>
     </div>

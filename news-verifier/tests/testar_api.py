@@ -1,13 +1,13 @@
 import requests
 import json
 
-# Teste 1: Health check
+                       
 print("=== Teste 1: Health Check ===")
 response = requests.get('http://127.0.0.1:5000/api/health')
 print(json.dumps(response.json(), indent=2, ensure_ascii=False))
 print()
 
-# Teste 2: Verificar notícia (texto)
+                                    
 print("=== Teste 2: Verificar Notícia (Texto) ===")
 dados = {
     "tipo": "texto",
@@ -17,7 +17,7 @@ response = requests.post('http://127.0.0.1:5000/api/verificar', json=dados)
 print(json.dumps(response.json(), indent=2, ensure_ascii=False))
 print()
 
-# Teste 3: Verificar notícia (URL)
+                                  
 print("=== Teste 3: Verificar Notícia (URL) ===")
 dados = {
     "tipo": "url",

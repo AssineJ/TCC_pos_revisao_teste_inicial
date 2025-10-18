@@ -1,4 +1,4 @@
-# modules/semantic_analyzer.py
+                              
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -6,21 +6,21 @@ import re
 from config import Config
 import time
 
-# === NOVO: cache de embeddings ===
+                                   
 import os
 import hashlib
 import pickle
 
-# Diretório de cache (persistente)
+                                  
 CACHE_DIR = os.path.join("cache", "embeddings")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 
-# ============================================================================
-# DETECÇÃO INTELIGENTE DE CONTRADIÇÃO
-# ============================================================================
+                                                                              
+                                     
+                                                                              
 
-# Palavras que indicam NEGAÇÃO FORTE (só estas contam)
+                                                      
 STRONG_NEGATION_WORDS = [
     'não', 'nao', 'nunca', 'jamais', 'nenhum', 'nenhuma',
     'falso', 'falsa', 'mentira', 'fake', 'desmentido', 'desmente',
@@ -28,14 +28,14 @@ STRONG_NEGATION_WORDS = [
     'boato', 'desinformação', 'fake news'
 ]
 
-# Palavras NEUTRAS que NÃO são contradição (sinônimos, variações)
+                                                                 
 NEUTRAL_WORDS = [
     'quer', 'pretende', 'planeja', 'projeta', 'estuda', 'avalia',
     'confirma', 'anuncia', 'declara', 'afirma', 'diz', 'informa',
     'pode', 'deve', 'vai', 'irá', 'poderá', 'deverá'
 ]
 
-# Padrões FORTES de desmentido (só estes ativam alerta)
+                                                       
 STRONG_DEBUNK_PATTERNS = [
     r'é\s+falso\s+que',
     r'não\s+é\s+verdade\s+que',
@@ -54,7 +54,7 @@ def extrair_numeros(texto):
     Extrai números do texto para comparação.
     Exemplo: "R$ 1.631" → 1631.0
     """
-    # Remove formatação e extrai números
+                                        
     numeros = re.findall(r'[\d]+[.,]?[\d]*', texto.replace('.', '').replace(',', '.'))
     return [float(n.replace(',', '.')) for n in numeros if n]
 
@@ -86,7 +86,7 @@ def detectar_contradicao_inteligente(texto_original, texto_fonte, similaridade_s
     evidencias = []
     score_contradicao = 0.0
     
-    # REGRA 1: Alta similaridade => não contradiz
+                                                 
     if similaridade_semantica >= 0.55:
         return {
             "contradiz": False,
@@ -95,7 +95,7 @@ def detectar_contradicao_inteligente(texto_original, texto_fonte, similaridade_s
             "evidencias": []
         }
     
-    # REGRA 2: Números similares => não contradiz
+                                                 
     nums_original = extrair_numeros(texto_original)
     nums_fonte = extrair_numeros(texto_fonte)
     if nums_original and nums_fonte:
@@ -107,14 +107,14 @@ def detectar_contradicao_inteligente(texto_original, texto_fonte, similaridade_s
                 "evidencias": []
             }
     
-    # REGRA 3: Padrões fortes de desmentido
+                                           
     for pattern in STRONG_DEBUNK_PATTERNS:
         match = re.search(pattern, texto_fonte_lower)
         if match:
             score_contradicao += 0.5
             evidencias.append(f"Padrão de desmentido: '{match.group(0)}'")
     
-    # REGRA 4: Negações fortes próximas de palavras-chave
+                                                         
     palavras_chave = [w for w in texto_original_lower.split() if len(w) > 4 and w not in NEUTRAL_WORDS][:5]
     negacoes_contextuais = 0
     for palavra_chave in palavras_chave:
@@ -126,18 +126,18 @@ def detectar_contradicao_inteligente(texto_original, texto_fonte, similaridade_s
             for negacao in STRONG_NEGATION_WORDS:
                 if negacao in contexto:
                     negacoes_contextuais += 1
-                    evidencias.append(f"Negação '{negacao}' próxima de '{palavra_chave}'")
+                    evidencias.append(f"Negação '{negacao}'próxima de '{palavra_chave}'")
     if negacoes_contextuais >= 2:
         score_contradicao += min(negacoes_contextuais * 0.15, 0.3)
     
-    # REGRA 5: Similaridade média reduz score
+                                             
     if similaridade_semantica >= 0.40:
         score_contradicao *= 0.3
         evidencias.append(f"Score reduzido devido à similaridade moderada ({similaridade_semantica:.2f})")
     
-    # Decisão final (limiar alto)
+                                 
     contradiz = score_contradicao >= 0.6
-    motivo = f"Contradição detectada (confiança: {score_contradicao:.2f})" if contradiz else "Sem contradição clara detectada"
+    motivo = f"Contradição detectada (confiança: {score_contradicao:.2f})"if contradiz else "Sem contradição clara detectada"
     
     return {
         "contradiz": contradiz,
@@ -147,9 +147,9 @@ def detectar_contradicao_inteligente(texto_original, texto_fonte, similaridade_s
     }
 
 
-# ============================================================================
-# CARREGAR MODELO (LAZY LOADING)
-# ============================================================================
+                                                                              
+                                
+                                                                              
 
 _semantic_model = None
 
@@ -161,25 +161,25 @@ def _carregar_modelo():
     global _semantic_model
     
     if _semantic_model is None:
-        print("📚 Carregando modelo sentence-transformers...")
+        print("Carregando modelo sentence-transformers...")
         print(f"   Modelo: {Config.SENTENCE_TRANSFORMER_MODEL}")
-        print("   ⏳ Isso pode demorar 30-60s na primeira vez...")
+        print("    Isso pode demorar 30-60s na primeira vez...")
         
         inicio = time.time()
         try:
             _semantic_model = SentenceTransformer(Config.SENTENCE_TRANSFORMER_MODEL)
             tempo = time.time() - inicio
-            print(f"   ✅ Modelo carregado em {tempo:.1f}s!")
+            print(f"    Modelo carregado em {tempo:.1f}s!")
         except Exception as e:
-            print(f"   ❌ ERRO ao carregar modelo: {e}")
+            print(f"    ERRO ao carregar modelo: {e}")
             raise
     
     return _semantic_model
 
 
-# ============================================================================
-# CLASSE PRINCIPAL - SEMANTIC ANALYZER
-# ============================================================================
+                                                                              
+                                      
+                                                                              
 
 class SemanticAnalyzer:
     """
@@ -189,24 +189,24 @@ class SemanticAnalyzer:
         """Inicializa analyzer com modelo de IA"""
         self.model = _carregar_modelo()
 
-    # === NOVO: geração de embedding com cache em disco ===
+                                                           
     def _gerar_embedding_com_cache(self, texto: str) -> np.ndarray:
         """
         Gera embedding com cache em disco. Usa hash do texto + id do modelo.
         Limita o texto a 2000 chars (mesma heurística do pipeline).
         """
         if not texto:
-            return np.zeros((384,), dtype=np.float32)  # tamanho típico all-MiniLM; evita crash
+            return np.zeros((384,), dtype=np.float32)                                          
 
         texto_lim = texto[:2000]
 
-        # incluir modelo na chave para evitar colisão ao trocar de modelo
+                                                                         
         model_id = getattr(Config, "SENTENCE_TRANSFORMER_MODEL", "default-model")
         key_src = f"{model_id}||{texto_lim}".encode("utf-8", "ignore")
         texto_hash = hashlib.md5(key_src).hexdigest()
         cache_path = os.path.join(CACHE_DIR, f"{texto_hash}.pkl")
 
-        # cache hit
+                   
         if os.path.exists(cache_path):
             try:
                 with open(cache_path, "rb") as f:
@@ -214,9 +214,9 @@ class SemanticAnalyzer:
                 if isinstance(emb, np.ndarray):
                     return emb
             except Exception:
-                pass  # prossegue para recálculo
+                pass                            
 
-        # gerar e salvar
+                        
         emb = self.model.encode(texto_lim, convert_to_numpy=True)
         try:
             with open(cache_path, "wb") as f:
@@ -229,9 +229,9 @@ class SemanticAnalyzer:
         """
         Analisa todas as notícias extraídas comparando com o texto original.
         """
-        print(f"\n🔬 Iniciando análise semântica INTELIGENTE...")
+        print(f"\n Iniciando análise semântica INTELIGENTE...")
         
-        # Gerar embedding do texto original (com cache)
+                                                       
         embedding_original = self._gerar_embedding_com_cache(texto_original)
         
         resultados_analise = {}
@@ -242,7 +242,7 @@ class SemanticAnalyzer:
         nao_relacionados = 0
         contradizem = 0
         
-        # Para cada fonte
+                         
         for fonte_nome, fonte_conteudos in conteudos_scraping.items():
             if fonte_nome == 'metadata':
                 continue
@@ -251,7 +251,7 @@ class SemanticAnalyzer:
                 resultados_analise[fonte_nome] = []
                 continue
             
-            print(f"\n   📰 Analisando {fonte_nome}: {len(fonte_conteudos)} notícia(s)")
+            print(f"\n    Analisando {fonte_nome}: {len(fonte_conteudos)} notícia(s)")
             
             analises_fonte = []
             
@@ -267,21 +267,21 @@ class SemanticAnalyzer:
                     })
                     continue
                 
-                # Calcular similaridade primeiro (embedding com cache)
+                                                                      
                 embedding_fonte = self._gerar_embedding_com_cache(conteudo['texto'])
                 similaridade = cosine_similarity(
                     embedding_original.reshape(1, -1),
                     embedding_fonte.reshape(1, -1)
                 )[0][0]
                 
-                # ✅ Detecção INTELIGENTE de contradição (passa similaridade)
+                                                                           
                 contradicao = detectar_contradicao_inteligente(
                     texto_original, 
                     conteudo['texto'],
                     float(similaridade)
                 )
                 
-                # Analisar status
+                                 
                 analise = self._analisar_similaridade(
                     float(similaridade),
                     conteudo,
@@ -291,7 +291,7 @@ class SemanticAnalyzer:
                 analises_fonte.append(analise)
                 total_analisados += 1
                 
-                # Contabilizar status
+                                     
                 if analise['status'] == 'CONTRADIZ':
                     contradizem += 1
                 elif analise['status'] == 'confirma_forte':
@@ -305,22 +305,22 @@ class SemanticAnalyzer:
             
             resultados_analise[fonte_nome] = analises_fonte
             
-            # Resumo
+                    
             sucessos = sum(1 for a in analises_fonte if a.get('similaridade', 0) > 0)
             contrad = sum(1 for a in analises_fonte if a.get('status') == 'CONTRADIZ')
-            print(f"      ✅ {sucessos} análise(s) concluída(s)")
+            print(f"       {sucessos} análise(s) concluída(s)")
             if contrad > 0:
-                print(f"      ⚠️  {contrad} contradição(ões) detectada(s)")
+                print(f"        {contrad} contradição(ões) detectada(s)")
         
-        # Metadata final
-        print(f"\n✅ Análise semântica concluída!")
+                        
+        print(f"\n Análise semântica concluída!")
         print(f"   Total analisado: {total_analisados}")
         if contradizem > 0:
-            print(f"   ⚠️  CONTRADIZEM: {contradizem}")
-        print(f"   ✓ Confirmam forte: {confirmam_forte}")
-        print(f"   ✓ Confirmam parcial: {confirmam_parcial}")
+            print(f"     CONTRADIZEM: {contradizem}")
+        print(f"    Confirmam forte: {confirmam_forte}")
+        print(f"    Confirmam parcial: {confirmam_parcial}")
         print(f"   ~ Apenas mencionam: {apenas_mencionam}")
-        print(f"   ✗ Não relacionados: {nao_relacionados}")
+        print(f"    Não relacionados: {nao_relacionados}")
         
         return {
             **resultados_analise,
@@ -341,7 +341,7 @@ class SemanticAnalyzer:
         """
         if contradicao['contradiz'] and contradicao['confianca'] >= 0.7:
             status = 'CONTRADIZ'
-            motivo = f"⚠️ {contradicao['motivo']}"
+            motivo = f" {contradicao['motivo']}"
         elif similaridade >= Config.SIMILARITY_THRESHOLD_HIGH:
             status = 'confirma_forte'
             motivo = f'Alta similaridade ({similaridade:.1%}) - confirma informação'
@@ -366,7 +366,7 @@ class SemanticAnalyzer:
         }
     
     
-    # (mantido para compatibilidade, agora só redireciona ao método com cache)
+                                                                              
     def _gerar_embedding(self, texto):
         """Compat: mantém a assinatura antiga, mas usa o cache novo."""
         return self._gerar_embedding_com_cache(texto)
@@ -393,9 +393,9 @@ class SemanticAnalyzer:
         }
 
 
-# ============================================================================
-# FUNÇÃO DE CONVENIÊNCIA
-# ============================================================================
+                                                                              
+                        
+                                                                              
 
 def analisar_semantica(texto_original, conteudos_scraping):
     """Função simplificada para análise semântica."""
@@ -403,19 +403,19 @@ def analisar_semantica(texto_original, conteudos_scraping):
     return analyzer.analisar_noticias(texto_original, conteudos_scraping)
 
 
-# ============================================================================
-# TESTE DO MÓDULO
-# ============================================================================
+                                                                              
+                 
+                                                                              
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("🧪 TESTANDO DETECÇÃO INTELIGENTE DE CONTRADIÇÃO")
+    print("TESTANDO DETECÇÃO INTELIGENTE DE CONTRADIÇÃO")
     print("=" * 70)
     print()
     
     analyzer = SemanticAnalyzer()
     
-    # Teste 1: NOTÍCIA VERDADEIRA (não deve contradizer)
+                                                        
     print("Teste 1: Notícia VERDADEIRA sobre salário mínimo")
     print("-" * 70)
     
@@ -426,15 +426,15 @@ if __name__ == "__main__":
     
     print(f"Original: {texto_real}")
     print(f"Fonte: {texto_fonte_real}")
-    print(f"\n✅ Similaridade: {resultado_real['similaridade']:.4f}")
-    print(f"❌ Contradiz: {resultado_real['contradiz']}")
-    print(f"📊 Confiança: {resultado_real['confianca_contradicao']:.2f}")
-    print(f"💬 Motivo: {resultado_real['motivo']}")
+    print(f"\n Similaridade: {resultado_real['similaridade']:.4f}")
+    print(f"Contradiz: {resultado_real['contradiz']}")
+    print(f"Confiança: {resultado_real['confianca_contradicao']:.2f}")
+    print(f"Motivo: {resultado_real['motivo']}")
     if resultado_real['evidencias']:
-        print(f"🔍 Evidências: {resultado_real['evidencias']}")
+        print(f"Evidências: {resultado_real['evidencias']}")
     print()
     
-    # Teste 2: FAKE NEWS (deve contradizer)
+                                           
     print("Teste 2: FAKE NEWS sobre vacinas")
     print("-" * 70)
     
@@ -445,14 +445,14 @@ if __name__ == "__main__":
     
     print(f"Original: {texto_fake}")
     print(f"Fonte: {texto_fonte_fake}")
-    print(f"\n✅ Similaridade: {resultado_fake['similaridade']:.4f}")
-    print(f"❌ Contradiz: {resultado_fake['contradiz']}")
-    print(f"📊 Confiança: {resultado_fake['confianca_contradicao']:.2f}")
-    print(f"💬 Motivo: {resultado_fake['motivo']}")
+    print(f"\n Similaridade: {resultado_fake['similaridade']:.4f}")
+    print(f"Contradiz: {resultado_fake['contradiz']}")
+    print(f"Confiança: {resultado_fake['confianca_contradicao']:.2f}")
+    print(f"Motivo: {resultado_fake['motivo']}")
     if resultado_fake['evidencias']:
-        print(f"🔍 Evidências: {resultado_fake['evidencias']}")
+        print(f"Evidências: {resultado_fake['evidencias']}")
     
     print()
     print("=" * 70)
-    print("✅ TESTES CONCLUÍDOS!")
+    print("TESTES CONCLUÍDOS!")
     print("=" * 70)
