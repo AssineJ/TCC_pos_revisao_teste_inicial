@@ -14,12 +14,12 @@ const STATUS_COPY = {
 };
 
 // Logos dos portais (base64 ou URL)
-const PORTAL_LOGOS = {
-  'G1': '🌐',
-  'Folha de S.Paulo': '📰',
-  'UOL Notícias': '📱',
-  'IstoÉ': '📄',
-  'Estadão': '📰'
+export const PORTAL_LOGOS = {
+  'G1': { src: '/assets/g1-logo.png', alt: 'G1' },
+  'Folha de S.Paulo': { src: '/assets/logo-folha.png', alt: 'Folha de S.Paulo' },
+  'UOL Notícias': { src: '/assets/uol-logo.jpg', alt: 'UOL Notícias' },
+  'IstoÉ': { src: '/assets/istoe-logo.jpeg', alt: 'IstoÉ' },
+  'Estadão': { src: '/assets/estadao-logo.png', alt: 'Estadão' }
 };
 
 function SourceModal({ source, onClose }) {
@@ -107,8 +107,17 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
+  // ✅ CORREÇÃO: Extrair veracity_score do result (estava faltando!)
+  const {
+    veracity_score,
+    summary,
+    signals,
+    related_sources,
+    confidence_level
+  } = result;
+
   // ✅ NOVO: Se score é 0 ou muito baixo, mostrar como erro sem roda
-  if (veracity_score === 0 || (veracity_score < 15 && result.summary && result.summary.includes('insuficientes'))) {
+  if (veracity_score === 0 || (veracity_score < 15 && summary && summary.includes('insuficientes'))) {
     return (
       <div className="card card--result">
         <div className="result__content">
@@ -150,14 +159,6 @@ export default function VerificationResult({ status, result }) {
       </div>
     );
   }
-
-  const {
-    veracity_score,
-    summary,
-    signals,
-    related_sources,
-    confidence_level
-  } = result;
 
   // Determinar nível baseado no score
   const getConfidenceLevel = (score) => {
