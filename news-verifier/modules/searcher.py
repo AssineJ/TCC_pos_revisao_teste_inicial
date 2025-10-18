@@ -7,8 +7,10 @@ import time
 import json
 import hashlib
 import random
+import unicodedata
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from collections import Counter
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -95,6 +97,187 @@ def _clean_text(s: str) -> str:
     return s
 
 
+STOPWORDS_PT = {
+    "a", "o", "os", "as", "um", "uma", "uns", "umas", "de", "da", "do",
+    "das", "dos", "para", "por", "com", "sem", "em", "no", "na", "nos",
+    "nas", "sobre", "entre", "que", "quem", "onde", "quando", "como",
+    "porque", "porquê", "porque", "qual", "quais", "se", "e", "ou", "mas",
+    "ser", "sera", "será", "foi", "era", "sao", "são", "tem", "têm", "ter",
+    "vai", "serao", "serão", "este", "esta", "estes", "estas", "isso", "isto",
+    "aquele", "aquela", "aqueles", "aquelas", "dessa", "desse", "deste", "desta",
+    "pelo", "pela", "pelos", "pelas", "ja", "já", "ainda", "muito", "muita",
+    "muitos", "muitas", "mais", "menos", "desde", "apos", "após", "ate", "até",
+    "sua", "seu", "suas", "seus", "segundo", "seg", "contra", "pode", "podem",
+    "podera", "poderá", "deve", "devem", "ha", "há", "houve", "foram", "novo",
+    "nova", "novos", "novas", "antes"
+}
+
+
+def _normalize_for_match(text: str) -> str:
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFD", text)
+    text = text.encode("ascii", "ignore").decode("utf-8")
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _tokenize_keywords(query: str) -> List[str]:
+    normalized = _normalize_for_match(query)
+    if not normalized:
+        return []
+    tokens = [t for t in normalized.split() if len(t) > 2 and t not in STOPWORDS_PT]
+    if not tokens:
+        return normalized.split()
+    freq = Counter(tokens)
+    ordered = [token for token, _ in freq.most_common()]
+    return ordered
+
+
+def _extract_focus_phrases(query: str, keywords: List[str]) -> Tuple[List[str], List[str]]:
+    """Identifica expressões relevantes do texto original e combinações de keywords."""
+
+    raw_phrases: List[str] = []
+    norm_phrases: List[str] = []
+
+    base = _clean_text(query)
+    if base:
+        # Captura sequências com iniciais maiúsculas (nomes próprios)
+        padrao = r"((?:[A-ZÁÂÃÀÉÊÍÓÔÕÚÜ][\wÁ-ú]+(?:\s+[A-ZÁÂÃÀÉÊÍÓÔÕÚÜ][\wÁ-ú]+)+))"
+        for match in re.finditer(padrao, query):
+            trecho = match.group(1).strip()
+            if len(trecho.split()) > 1 and len(trecho.split()) <= 6:
+                raw_phrases.append(trecho)
+                norm = _normalize_for_match(trecho)
+                if norm:
+                    norm_phrases.append(norm)
+
+    # Combinações adjacentes das keywords em ordem de relevância
+    for tamanho in range(min(4, len(keywords)), 1, -1):
+        for idx in range(0, len(keywords) - tamanho + 1):
+            trecho = " ".join(keywords[idx : idx + tamanho])
+            if len(trecho) < 5:
+                continue
+            if trecho not in raw_phrases:
+                raw_phrases.append(trecho)
+            norm = _normalize_for_match(trecho)
+            if norm and norm not in norm_phrases:
+                norm_phrases.append(norm)
+
+    # Remove duplicados preservando ordem
+    def _unique(seq: List[str]) -> List[str]:
+        vistos = set()
+        saida = []
+        for item in seq:
+            if item in vistos:
+                continue
+            vistos.add(item)
+            saida.append(item)
+        return saida
+
+    return _unique(raw_phrases), _unique(norm_phrases)
+
+
+def _gerar_variacoes_query(query: str, keywords: List[str], focus_phrases: List[str]) -> List[str]:
+    variantes: List[str] = []
+    base = _clean_text(query)
+    if base:
+        variantes.append(base)
+
+    if keywords:
+        palavras_principais = " ".join(keywords[:4]).strip()
+        if palavras_principais and palavras_principais not in variantes:
+            variantes.append(palavras_principais)
+        if len(keywords) >= 2:
+            frase = " \"" + " ".join(keywords[:2]) + "\""
+            frase = frase.strip()
+            if frase and frase not in variantes:
+                variantes.append(frase)
+
+    for frase in focus_phrases[:5]:
+        frase_limpa = _clean_text(frase)
+        if frase_limpa and frase_limpa not in variantes:
+            variantes.append(frase_limpa)
+        quoted = f'"{frase_limpa}"' if frase_limpa else ""
+        if quoted and quoted not in variantes:
+            variantes.append(quoted)
+
+    return variantes or ([base] if base else [])
+
+
+def _rank_results_by_keywords(
+    results: List[Dict[str, Any]],
+    keywords: List[str],
+    query_norm: str,
+    focus_phrases_norm: List[str],
+    limit: int,
+) -> List[Dict[str, Any]]:
+    if not results:
+        return []
+
+    if not keywords:
+        return results[:limit]
+
+    scored = []
+    total_keywords = len(keywords)
+    query_tokens = set(query_norm.split()) if query_norm else set()
+
+    for res in results:
+        texto = f"{res.get('title', '')} {res.get('snippet', '')}"
+        texto_norm = _normalize_for_match(texto)
+        if not texto_norm:
+            continue
+
+        matches = sum(1 for kw in keywords if kw in texto_norm)
+        if matches == 0:
+            continue
+
+        cobertura = matches / total_keywords if total_keywords else 0.0
+        overlap_tokens = 0.0
+        if query_tokens:
+            tokens_resultado = set(texto_norm.split())
+            overlap_tokens = len(tokens_resultado & query_tokens) / len(query_tokens)
+
+        frase_hits = sum(1 for frase in focus_phrases_norm if frase in texto_norm)
+
+        snippet_bonus = 0.05 if res.get("snippet") else 0.0
+
+        titulo = _normalize_for_match(res.get("title", ""))
+        title_overlap = 0.0
+        if titulo and query_tokens:
+            tokens_titulo = set(titulo.split())
+            if tokens_titulo:
+                title_overlap = len(tokens_titulo & query_tokens) / len(tokens_titulo)
+
+        ano_bonus = 0.0
+        ano_query = re.findall(r"20\d{2}", query_norm)
+        if ano_query:
+            ano_resultado = re.findall(r"20\d{2}", texto)
+            if any(a in ano_resultado for a in ano_query):
+                ano_bonus = 0.05
+
+        base_score = (cobertura * 0.55) + (overlap_tokens * 0.2) + (title_overlap * 0.15)
+        frase_bonus = min(frase_hits * 0.08, 0.16)
+        score = base_score + frase_bonus + snippet_bonus + ano_bonus
+
+        scored.append((score, cobertura, matches, res))
+
+    if not scored:
+        return results[:limit]
+
+    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    ordenados: List[Dict[str, Any]] = []
+    for _, _, _, res in scored:
+        if not any(res.get("url") and res.get("url") == existente.get("url") for existente in ordenados):
+            ordenados.append(res)
+        if len(ordenados) >= limit:
+            break
+
+    return ordenados
+
+
 # ============================================================
 # Mecanismo principal de busca
 # ============================================================
@@ -117,46 +300,52 @@ class SearchEngine:
         if not query or not dominio:
             return []
 
-        # cache
+        keywords = _tokenize_keywords(query)
+        focus_raw, focus_norm = _extract_focus_phrases(query, keywords)
+        query_norm = _normalize_for_match(query)
+
         cached = cache_get(query, dominio)
         if cached is not None:
-            return cached[: self.max_per_source]
+            return _rank_results_by_keywords(cached, keywords, query_norm, focus_norm, self.max_per_source)
 
-        # ordem de prioridade
         methods = getattr(Config, "SEARCH_METHODS_PRIORITY", ["serpapi", "googlesearch", "direct"])
         mode = getattr(Config, "SEARCH_MODE", "mock").lower()
 
-        results: List[Dict[str, Any]] = []
+        variantes = _gerar_variacoes_query(query, keywords, focus_raw)
+        max_coleta = max(self.max_per_source * 3, 6)
+        resultados_final: List[Dict[str, Any]] = []
 
-        if mode == "mock":
-            results = self._mock_results(dominio, query)
-        else:
-            for m in methods:
-                try:
-                    if m == "serpapi":
-                        res = self._search_serpapi(query, dominio)
-                    elif m == "googlesearch":
-                        res = self._search_googlesearch(query, dominio)
-                    else:
-                        res = self._search_direct(query, dominio)
-                    res = [r for r in res if r.get("url")]
-                    for r in res:
-                        if len(results) >= self.max_per_source:
-                            break
-                        # evitar duplicatas
-                        if not any(r["url"] == x["url"] for x in results):
-                            results.append(r)
-                    if results:
-                        break  # satisfação: achamos algo nesta camada
-                except Exception:
-                    # tenta próxima estratégia
+        for variante in variantes:
+            raw = cache_get(variante, dominio)
+            if raw is None:
+                raw = self._buscar_raw(variante, dominio, mode, methods, max_coleta)
+                cache_set(variante, dominio, raw)
+            if not raw:
+                raw = []
+
+            ranqueados = _rank_results_by_keywords(raw, keywords, query_norm, focus_norm, max_coleta)
+            for item in ranqueados:
+                if not item.get("url"):
                     continue
+                if not any(item["url"] == existente.get("url") for existente in resultados_final):
+                    resultados_final.append(item)
+                if len(resultados_final) >= self.max_per_source:
+                    break
+            if len(resultados_final) >= self.max_per_source:
+                break
 
-        # salvar no cache e devolver
-        cache_set(query, dominio, results)
-        # respeitar delay entre sites (para evitar rate limit)
+        if not resultados_final:
+            raw_fallback = self._buscar_raw(query, dominio, mode, methods, max_coleta)
+            if not raw_fallback:
+                raw_fallback = []
+            ranqueados_fallback = _rank_results_by_keywords(
+                raw_fallback, keywords, query_norm, focus_norm, self.max_per_source
+            )
+            resultados_final = ranqueados_fallback or raw_fallback[: self.max_per_source]
+
+        cache_set(query, dominio, resultados_final)
         time.sleep(self.delay_between)
-        return results[: self.max_per_source]
+        return resultados_final[: self.max_per_source]
 
     # --------------- providers ---------------
 
@@ -200,6 +389,47 @@ class SearchEngine:
             pass
         return out
 
+    def _search_google_rss(self, query: str, dominio: str) -> List[Dict[str, Any]]:
+        """Consulta o RSS do Google News filtrando pelo domínio confiável."""
+
+        rss_url = (
+            "https://news.google.com/rss/search?q="
+            + requests.utils.quote(f"site:{dominio} {query}")
+            + "&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+        )
+
+        session = requests.Session()
+        session.headers.update(self.headers)
+
+        try:
+            resp = session.get(rss_url, timeout=Config.REQUEST_TIMEOUT)
+            if not resp.ok:
+                return []
+
+            soup = BeautifulSoup(resp.text, "xml")
+            out: List[Dict[str, Any]] = []
+            for item in soup.find_all("item"):
+                link_tag = item.find("link")
+                title_tag = item.find("title")
+                if not link_tag or not title_tag:
+                    continue
+                link = link_tag.get_text(strip=True)
+                title = title_tag.get_text(strip=True)
+                if "url=" in link:
+                    m = re.search(r"url=(.*?)&", link)
+                    if m:
+                        link = requests.utils.unquote(m.group(1))
+                if dominio not in link:
+                    continue
+                description = item.find("description")
+                snippet = description.get_text(strip=True) if description else ""
+                out.append(_norm_result(title, link, snippet))
+                if len(out) >= max(6, self.max_per_source * 2):
+                    break
+            return out
+        except Exception:
+            return []
+
     def _search_direct(self, query: str, dominio: str) -> List[Dict[str, Any]]:
         """
         Tentativa simples: se a fonte tem 'url_busca' configurado, usa.
@@ -236,6 +466,43 @@ class SearchEngine:
             return final
         except Exception:
             return []
+
+    def _buscar_raw(self, query: str, dominio: str, mode: str,
+                    methods: List[str], max_coleta: int) -> List[Dict[str, Any]]:
+        resultados: List[Dict[str, Any]] = []
+
+        if mode == "mock":
+            return self._mock_results(dominio, query)
+
+        for metodo in methods:
+            try:
+                if metodo == "serpapi":
+                    encontrados = self._search_serpapi(query, dominio)
+                elif metodo == "googlesearch":
+                    encontrados = self._search_googlesearch(query, dominio)
+                elif metodo == "google_rss":
+                    encontrados = self._search_google_rss(query, dominio)
+                else:
+                    encontrados = self._search_direct(query, dominio)
+            except Exception:
+                continue
+
+            if not encontrados:
+                continue
+
+            for item in encontrados:
+                if not item.get("url"):
+                    continue
+                if any(item["url"] == existente.get("url") for existente in resultados):
+                    continue
+                resultados.append(item)
+                if len(resultados) >= max_coleta:
+                    break
+
+            if len(resultados) >= max_coleta:
+                break
+
+        return resultados
 
     # --------------- helpers ---------------
 

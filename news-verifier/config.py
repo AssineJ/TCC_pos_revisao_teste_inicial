@@ -234,7 +234,7 @@ class Config:
     ENABLE_SEARCH_FALLBACK = True
     
     # Ordem de prioridade dos métodos (usado no modo hybrid)
-    SEARCH_METHODS_PRIORITY = ['serpapi', 'googlesearch', 'direct']
+    SEARCH_METHODS_PRIORITY = ['serpapi', 'google_rss', 'googlesearch', 'direct']
     
     # Número máximo de resultados por busca
     MAX_SEARCH_RESULTS = 3
