@@ -41,8 +41,6 @@ const renderPortalLogo = (name) => {
 function SourceModal({ source, onClose }) {
   if (!source) return null;
 
-  const publishedYear = extractSourceYear(source);
-
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -69,14 +67,9 @@ function SourceModal({ source, onClose }) {
           </div>
 
           <div className="modal-field">
-            <label>Ano da notícia</label>
-            <p>{publishedYear || 'Não disponível'}</p>
-          </div>
-
-          <div className="modal-field">
             <label>URL</label>
-            <a
-              href={source.url}
+            <a 
+              href={source.url} 
               target="_blank" 
               rel="noopener noreferrer"
               className="modal-url"
@@ -119,54 +112,6 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
-  const isLowQualityError = result?.error_code === 'LOW_TEXT_QUALITY';
-
-  if (isLowQualityError) {
-    const issues = Array.isArray(result.signals) ? result.signals : [];
-    const qualityScore = result.quality_validation?.score_qualidade;
-    const hasQualityScore = typeof qualityScore === 'number';
-
-    return (
-      <div className="card card--result">
-        <div className="result__content">
-          <div className="result__label">RESULTADO DA ANÁLISE</div>
-
-          <div className="result__alert result__alert--error">
-            <div className="result__alert-header">
-              <h2>Dados insuficientes para validação</h2>
-
-              {hasQualityScore && (
-                <span className="result__alert-score">
-                  Nível de qualidade identificado: {(qualityScore * 100).toFixed(0)}%
-                </span>
-              )}
-            </div>
-
-            <div className="result__alert-grid">
-              <div className="result__alert-section">
-                <p className="result__alert-summary">{result.summary}</p>
-                <p className="result__alert-help">
-                  Forneça um texto com contexto suficiente, evitando repetições ou palavras desconexas, e tente novamente.
-                </p>
-              </div>
-
-              {issues.length > 0 && (
-                <div className="result__alert-section">
-                  <h3>Problemas identificados</h3>
-                  <ul className="result__alert-list">
-                    {issues.map((issue, index) => (
-                      <li key={index}>{issue}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const {
     veracity_score,
     summary,
@@ -175,6 +120,7 @@ export default function VerificationResult({ status, result }) {
     confidence_level
   } = result;
 
+  // Determinar nível baseado no score
   const getConfidenceLevel = (score) => {
     if (score >= 70) return 'alto';
     if (score >= 40) return 'medio';
@@ -187,17 +133,21 @@ export default function VerificationResult({ status, result }) {
     <>
       <div className="card card--result">
         <div className="result__content">
+          {/* Título */}
           <div className="result__label">PERCENTUAL DE VERACIDADE</div>
           
+          {/* Porcentagem grande + Gauge */}
           <div className="result__score-section">
             <h2 className="result__score">{Math.round(veracity_score)}%</h2>
             <VeracityGauge score={veracity_score} nivel={nivel} />
           </div>
 
+          {/* Justificativa */}
           <p className="result__summary">
             {summary || 'Análise concluída.'}
           </p>
 
+          {/* Sinais/Signals */}
           {Array.isArray(signals) && signals.length > 0 && (
             <ul className="result__signals">
               {signals.map((signal, index) => (
@@ -206,6 +156,7 @@ export default function VerificationResult({ status, result }) {
             </ul>
           )}
 
+          {/* Fontes consultadas */}
           {Array.isArray(related_sources) && related_sources.length > 0 && (
             <div className="result__sources">
               <h3>Fontes consultadas</h3>
@@ -214,7 +165,6 @@ export default function VerificationResult({ status, result }) {
                   <button
                     key={index}
                     className="source-card"
-                    type="button"
                     onClick={() => setSelectedSource(source)}
                   >
                     <div className="source-logo">
@@ -230,6 +180,7 @@ export default function VerificationResult({ status, result }) {
             </div>
           )}
 
+          {/* Nível de confiança */}
           <div className={`confidence-badge confidence-badge--${nivel}`}>
             Nível de confiança: <strong>{confidence_level || nivel.toUpperCase()}</strong>
           </div>

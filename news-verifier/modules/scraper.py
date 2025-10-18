@@ -472,14 +472,11 @@ def scrape_noticias_paralelo(resultado_busca):
                 url = r.get('url', '')
                 texto = f"{titulo}. {snippet}".strip()
                 ok = len(texto) >= 30
-                data_publicacao = None
-                if url:
-                    data_publicacao = _EXTRACTOR_SINGLETON.obter_data_publicacao(url)
                 conteudos_por_fonte[fonte_nome].append({
                     'url': url,
                     'titulo': titulo,
                     'texto': texto if ok else '',
-                    'data_publicacao': data_publicacao,
+                    'data_publicacao': None,
                     'autor': None,
                     'metodo_extracao': 'titulo_snippet',
                     'sucesso': ok,
