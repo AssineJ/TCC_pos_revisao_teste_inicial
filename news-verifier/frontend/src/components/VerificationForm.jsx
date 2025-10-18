@@ -1,6 +1,47 @@
 import { useMemo, useState, useEffect } from 'react';
 import { FiLink, FiFileText, FiRefreshCw, FiSend } from 'react-icons/fi';
 
+const sanitizeText = (value) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\u0300-\u036f]/g, '');
+
+const enforceMaxLength = (value, maxLength) =>
+  typeof maxLength === 'number' ? value.slice(0, maxLength) : value;
+
+const PROFANITY_PATTERNS = [
+  /\bporra\b/,
+  /\bcaralho\b/,
+  /\bmerda\b/,
+  /\bbosta\b/,
+  /\bcacete\b/,
+  /\bputa\b/,
+  /\bputo\b/,
+  /\bputaria\b/,
+  /\bputinha\b/,
+  /\bdesgraca\b/,
+  /\bdesgracado\b/,
+  /\bdesgracada\b/,
+  /\barrombado\b/,
+  /\barrombada\b/,
+  /\bviado\b/,
+  /\bvadia\b/,
+  /\bcuz(o|ao)\b/,
+  /\bcuzinho\b/,
+  /\bfoder\b/,
+  /\bfodido\b/,
+  /\bfodida\b/,
+  /foda[-\s]?se/,
+  /\bfoda\b/,
+  /\bvsf\b/,
+  /\bcorno\b/,
+  /\bcorna\b/,
+  /\bfilh[oa]\s+da\s+puta\b/,
+  /\bseu?\s+(merda|lixo)/
+];
+
 const INPUT_TYPES = {
   url: {
     label: 'Validar por URL',
@@ -14,9 +55,9 @@ const INPUT_TYPES = {
     label: 'Validar por texto',
     placeholder: 'Cole o conteúdo da notícia que deseja analisar...',
     minLength: 50,
-    maxLength: 300,  // ✅ LIMITE DE 300 CARACTERES
-    helpText: 'Insira o texto completo da notícia. Mínimo 50, máximo 300 caracteres.',
-    errorText: 'Insira entre 50 e 300 caracteres para análise.'
+    maxLength: 500,  // ✅ LIMITE DE 500 CARACTERES
+    helpText: 'Insira o texto completo da notícia. Mínimo 50, máximo 500 caracteres e sem palavrões.',
+    errorText: 'Insira entre 50 e 500 caracteres sem palavras de baixo calão.'
   }
 };
 
@@ -29,11 +70,26 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState(false);
   const [textQualityWarning, setTextQualityWarning] = useState('');
+  const [profanityWarning, setProfanityWarning] = useState('');
 
   const isLoading = status === 'loading';
 
+  const rawCharCount = form.value.length;
   const charCount = useMemo(() => form.value.trim().length, [form.value]);
-  const isFormValid = charCount >= INPUT_TYPES[form.mode].minLength;
+  const currentConfig = INPUT_TYPES[form.mode];
+  const containsProfanity = useMemo(() => {
+    if (form.mode !== 'text' || !form.value) {
+      return false;
+    }
+
+    const normalizedText = sanitizeText(form.value);
+    return PROFANITY_PATTERNS.some((pattern) => pattern.test(normalizedText));
+  }, [form.mode, form.value]);
+
+  const isWithinMax =
+    typeof currentConfig.maxLength === 'number' ? rawCharCount <= currentConfig.maxLength : true;
+  const isFormValid =
+    charCount >= currentConfig.minLength && isWithinMax && !containsProfanity;
 
   // Validação de qualidade em tempo real
   useEffect(() => {
@@ -60,10 +116,19 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
     }
   }, [form.value, form.mode, charCount]);
 
+  useEffect(() => {
+    if (form.mode === 'text' && containsProfanity) {
+      setProfanityWarning('❌ Texto contém palavras de baixo calão. Remova-as para continuar.');
+    } else {
+      setProfanityWarning('');
+    }
+  }, [containsProfanity, form.mode]);
+
   const handleModeChange = (mode) => {
     setForm({ mode, value: '' });
     setTouched(false);
     setTextQualityWarning('');
+    setProfanityWarning('');
     if (onReset) onReset();
   };
 
@@ -92,10 +157,14 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
     setForm(INITIAL_FORM);
     setTouched(false);
     setTextQualityWarning('');
+    setProfanityWarning('');
     if (onReset) onReset();
   };
 
-  const currentConfig = INPUT_TYPES[form.mode];
+  const isAtMaxLength =
+    form.mode === 'text' && typeof currentConfig.maxLength === 'number'
+      ? rawCharCount >= currentConfig.maxLength
+      : false;
 
   return (
     <form className="card" onSubmit={handleSubmit}>
@@ -143,17 +212,29 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
             type="url"
             placeholder={currentConfig.placeholder}
             value={form.value}
-            onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                value: enforceMaxLength(event.target.value, currentConfig.maxLength)
+              }))
+            }
             disabled={isLoading}
+            maxLength={currentConfig.maxLength}
             required
           />
         ) : (
           <textarea
             placeholder={currentConfig.placeholder}
             value={form.value}
-            onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                value: enforceMaxLength(event.target.value, currentConfig.maxLength)
+              }))
+            }
             disabled={isLoading}
             minLength={currentConfig.minLength}
+            maxLength={currentConfig.maxLength}
             rows={8}
             required
           />
@@ -164,7 +245,8 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
         <div className="form__status">
           <strong>{charCount}</strong> caracteres
           <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
-            (mínimo: {currentConfig.minLength})
+            (mínimo: {currentConfig.minLength}
+            {typeof currentConfig.maxLength === 'number' ? `, máximo: ${currentConfig.maxLength}` : ''})
           </span>
           {touched && !isFormValid && (
             <span className="form__warning">
@@ -174,6 +256,16 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
           {textQualityWarning && (
             <span className="form__warning">
               {textQualityWarning}
+            </span>
+          )}
+          {profanityWarning && (
+            <span className="form__warning">
+              {profanityWarning}
+            </span>
+          )}
+          {isAtMaxLength && (
+            <span className="form__warning">
+              ⚠️ Limite máximo de 500 caracteres atingido.
             </span>
           )}
           {lastRequest && (
