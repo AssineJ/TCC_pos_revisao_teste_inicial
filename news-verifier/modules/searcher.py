@@ -7,7 +7,9 @@ import time
 import json
 import hashlib
 import random
+import unicodedata
 from dataclasses import dataclass
+from collections import Counter
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -95,6 +97,112 @@ def _clean_text(s: str) -> str:
     return s
 
 
+STOPWORDS_PT = {
+    "a", "o", "os", "as", "um", "uma", "uns", "umas", "de", "da", "do",
+    "das", "dos", "para", "por", "com", "sem", "em", "no", "na", "nos",
+    "nas", "sobre", "entre", "que", "quem", "onde", "quando", "como",
+    "porque", "porquê", "porque", "qual", "quais", "se", "e", "ou", "mas",
+    "ser", "sera", "será", "foi", "era", "sao", "são", "tem", "têm", "ter",
+    "vai", "serao", "serão", "este", "esta", "estes", "estas", "isso", "isto",
+    "aquele", "aquela", "aqueles", "aquelas", "dessa", "desse", "deste", "desta",
+    "pelo", "pela", "pelos", "pelas", "ja", "já", "ainda", "muito", "muita",
+    "muitos", "muitas", "mais", "menos", "desde", "apos", "após", "ate", "até",
+    "sua", "seu", "suas", "seus", "segundo", "seg", "contra", "pode", "podem",
+    "podera", "poderá", "deve", "devem", "ha", "há", "houve", "foram", "novo",
+    "nova", "novos", "novas", "antes"
+}
+
+
+def _normalize_for_match(text: str) -> str:
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFD", text)
+    text = text.encode("ascii", "ignore").decode("utf-8")
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _tokenize_keywords(query: str) -> List[str]:
+    normalized = _normalize_for_match(query)
+    if not normalized:
+        return []
+    tokens = [t for t in normalized.split() if len(t) > 2 and t not in STOPWORDS_PT]
+    if not tokens:
+        return normalized.split()
+    freq = Counter(tokens)
+    ordered = [token for token, _ in freq.most_common()]
+    return ordered
+
+
+def _gerar_variacoes_query(query: str, keywords: List[str]) -> List[str]:
+    variantes: List[str] = []
+    base = _clean_text(query)
+    if base:
+        variantes.append(base)
+    if keywords:
+        palavras_principais = " ".join(keywords[:4]).strip()
+        if palavras_principais and palavras_principais not in variantes:
+            variantes.append(palavras_principais)
+        if len(keywords) >= 2:
+            frase = " \"" + " ".join(keywords[:2]) + "\""
+            frase = frase.strip()
+            if frase and frase not in variantes:
+                variantes.append(frase)
+    return variantes or [base]
+
+
+def _rank_results_by_keywords(results: List[Dict[str, Any]], keywords: List[str], limit: int) -> List[Dict[str, Any]]:
+    if not results:
+        return []
+
+    if not keywords:
+        return results[:limit]
+
+    scored = []
+    total_keywords = len(keywords)
+
+    for res in results:
+        texto = f"{res.get('title', '')} {res.get('snippet', '')}"
+        texto_norm = _normalize_for_match(texto)
+        if not texto_norm:
+            continue
+
+        matches = sum(1 for kw in keywords if kw in texto_norm)
+        cobertura = matches / total_keywords if total_keywords else 0.0
+
+        if total_keywords >= 3 and cobertura < 0.35:
+            continue
+        if total_keywords == 2 and matches == 0:
+            continue
+        if total_keywords == 1 and matches == 0:
+            continue
+
+        frase_bonus = 0.0
+        if total_keywords >= 2:
+            frase = " ".join(keywords[:2])
+            if frase and frase in texto_norm:
+                frase_bonus = 0.1
+
+        snippet_bonus = 0.05 if res.get("snippet") else 0.0
+        score = cobertura + (0.1 if matches >= 2 else 0.0) + frase_bonus + snippet_bonus
+        scored.append((score, cobertura, matches, res))
+
+    if not scored:
+        return results[:limit]
+
+    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    ordenados: List[Dict[str, Any]] = []
+    for _, _, _, res in scored:
+        if not any(res.get("url") and res.get("url") == existente.get("url") for existente in ordenados):
+            ordenados.append(res)
+        if len(ordenados) >= limit:
+            break
+
+    return ordenados
+
+
 # ============================================================
 # Mecanismo principal de busca
 # ============================================================
@@ -117,46 +225,44 @@ class SearchEngine:
         if not query or not dominio:
             return []
 
-        # cache
+        keywords = _tokenize_keywords(query)
+
         cached = cache_get(query, dominio)
         if cached is not None:
-            return cached[: self.max_per_source]
+            return _rank_results_by_keywords(cached, keywords, self.max_per_source)
 
-        # ordem de prioridade
         methods = getattr(Config, "SEARCH_METHODS_PRIORITY", ["serpapi", "googlesearch", "direct"])
         mode = getattr(Config, "SEARCH_MODE", "mock").lower()
 
-        results: List[Dict[str, Any]] = []
+        variantes = _gerar_variacoes_query(query, keywords)
+        max_coleta = max(self.max_per_source * 3, 6)
+        resultados_final: List[Dict[str, Any]] = []
 
-        if mode == "mock":
-            results = self._mock_results(dominio, query)
-        else:
-            for m in methods:
-                try:
-                    if m == "serpapi":
-                        res = self._search_serpapi(query, dominio)
-                    elif m == "googlesearch":
-                        res = self._search_googlesearch(query, dominio)
-                    else:
-                        res = self._search_direct(query, dominio)
-                    res = [r for r in res if r.get("url")]
-                    for r in res:
-                        if len(results) >= self.max_per_source:
-                            break
-                        # evitar duplicatas
-                        if not any(r["url"] == x["url"] for x in results):
-                            results.append(r)
-                    if results:
-                        break  # satisfação: achamos algo nesta camada
-                except Exception:
-                    # tenta próxima estratégia
+        for variante in variantes:
+            raw = cache_get(variante, dominio)
+            if raw is None:
+                raw = self._buscar_raw(variante, dominio, mode, methods, max_coleta)
+                cache_set(variante, dominio, raw)
+
+            ranqueados = _rank_results_by_keywords(raw, keywords, max_coleta)
+            for item in ranqueados:
+                if not item.get("url"):
                     continue
+                if not any(item["url"] == existente.get("url") for existente in resultados_final):
+                    resultados_final.append(item)
+                if len(resultados_final) >= self.max_per_source:
+                    break
+            if len(resultados_final) >= self.max_per_source:
+                break
 
-        # salvar no cache e devolver
-        cache_set(query, dominio, results)
-        # respeitar delay entre sites (para evitar rate limit)
+        if not resultados_final:
+            raw_fallback = self._buscar_raw(query, dominio, mode, methods, max_coleta)
+            ranqueados_fallback = _rank_results_by_keywords(raw_fallback, keywords, self.max_per_source)
+            resultados_final = ranqueados_fallback or raw_fallback[: self.max_per_source]
+
+        cache_set(query, dominio, resultados_final)
         time.sleep(self.delay_between)
-        return results[: self.max_per_source]
+        return resultados_final[: self.max_per_source]
 
     # --------------- providers ---------------
 
@@ -236,6 +342,41 @@ class SearchEngine:
             return final
         except Exception:
             return []
+
+    def _buscar_raw(self, query: str, dominio: str, mode: str,
+                    methods: List[str], max_coleta: int) -> List[Dict[str, Any]]:
+        resultados: List[Dict[str, Any]] = []
+
+        if mode == "mock":
+            return self._mock_results(dominio, query)
+
+        for metodo in methods:
+            try:
+                if metodo == "serpapi":
+                    encontrados = self._search_serpapi(query, dominio)
+                elif metodo == "googlesearch":
+                    encontrados = self._search_googlesearch(query, dominio)
+                else:
+                    encontrados = self._search_direct(query, dominio)
+            except Exception:
+                continue
+
+            if not encontrados:
+                continue
+
+            for item in encontrados:
+                if not item.get("url"):
+                    continue
+                if any(item["url"] == existente.get("url") for existente in resultados):
+                    continue
+                resultados.append(item)
+                if len(resultados) >= max_coleta:
+                    break
+
+            if len(resultados) >= max_coleta:
+                break
+
+        return resultados
 
     # --------------- helpers ---------------
 
