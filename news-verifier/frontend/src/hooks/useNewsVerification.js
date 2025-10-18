@@ -41,21 +41,24 @@ export default function useNewsVerification() {
     } catch (error) {
       console.error('Erro ao verificar notícia:', error);
       
-      // ✅ Detectar se foi timeout
+      // Detectar se foi timeout
       const isTimeout = error.name === 'AbortError' || error.message.includes('aborted');
       
-      // ✅ CORREÇÃO: Define um result de erro para mostrar mensagem adequada
+      // ✅ Detectar se foi erro de validação de texto
+      const isValidationError = error.message.includes('insuficientes') || error.message.includes('repetid');
+      
+      // ✅ CORREÇÃO: Define um result apropriado
       setResult({
-        veracity_score: 0,
-        summary: isTimeout 
-          ? '⏱️ A análise excedeu o tempo limite de 4 minutos. Isso pode ocorrer com textos muito longos ou quando há muitas fontes para consultar. Tente novamente com um texto mais curto.'
-          : 'Não foi possível concluir a análise. ' + (error.message || 'Erro desconhecido. Verifique se o backend está rodando em http://127.0.0.1:5000'),
+        veracity_score: 0,  // ✅ Score 0 para erros
+        summary: error.message || (isTimeout 
+          ? '⏱️ A análise excedeu o tempo limite de 4 minutos.'
+          : 'Não foi possível concluir a análise.'),
         related_sources: [],
-        signals: [
-          isTimeout 
+        signals: isValidationError 
+          ? ['Texto com problemas de qualidade detectados']
+          : [isTimeout 
             ? 'Timeout: A análise demorou mais de 4 minutos'
-            : 'Erro durante a verificação: ' + error.message
-        ],
+            : 'Erro durante a verificação'],
         confidence_level: 'Baixo',
         main_source: '',
         metadata: {},

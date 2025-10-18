@@ -10,9 +10,10 @@ from modules.extractor import extrair_conteudo
 from modules.nlp_processor import processar_texto
 from modules.searcher import buscar_noticias
 from modules.filters import filtrar_busca, filtrar_scraping
-from modules.scraper import scrape_noticias_paralelo as scrape_noticias
+from modules.scraper import scrape_noticias
 from modules.semantic_analyzer import analisar_semantica
 from modules.scorer import calcular_veracidade
+from modules.text_validator import validar_qualidade_texto, validar_url  # ✅ VALIDAÇÃO
 import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -58,7 +59,7 @@ app.config.from_object(Config)
 def verificar_noticia():
     """
     Endpoint principal que recebe uma notícia e retorna análise de veracidade.
-    ✅ NOVO: Agora detecta e alerta sobre contradições
+    ✅ COM VALIDAÇÃO DE QUALIDADE DE TEXTO
     """
 
     try:
@@ -107,6 +108,39 @@ def verificar_noticia():
         log_info(
             f"📨 Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo.strip())}"
         )
+
+        # ========================================================================
+        # ✅ ETAPA 1.5: VALIDAR QUALIDADE DO CONTEÚDO (NOVO!)
+        # ========================================================================
+        if tipo == 'url':
+            # Validar formato de URL
+            validacao_url = validar_url(conteudo)
+            if not validacao_url['valido']:
+                log_info(f"❌ URL inválida: {validacao_url['motivo']}")
+                return jsonify({
+                    "erro": "URL inválida",
+                    "detalhes": validacao_url['motivo'],
+                    "codigo": "INVALID_URL"
+                }), 422
+        else:
+            # Validar qualidade do texto
+            log_info(f"🔍 Validando qualidade do texto...")
+            validacao_texto = validar_qualidade_texto(conteudo)
+            
+            log_info(f"   Score qualidade: {validacao_texto['score_qualidade']}")
+            log_info(f"   Problemas: {len(validacao_texto['problemas'])}")
+            
+            if not validacao_texto['valido']:
+                log_info(f"❌ Texto REJEITADO: {validacao_texto['motivo']}")
+                return jsonify({
+                    "erro": "Dados fornecidos insuficientes para validação",
+                    "detalhes": validacao_texto['motivo'],
+                    "problemas": validacao_texto['problemas'],
+                    "score_qualidade": validacao_texto['score_qualidade'],
+                    "codigo": "INVALID_TEXT_QUALITY"
+                }), 422
+            
+            log_info(f"✅ Texto validado com sucesso (qualidade: {validacao_texto['score_qualidade']})")
 
         # ETAPA 2: EXTRAIR CONTEÚDO (se for URL)
         texto_para_analise = ""
@@ -172,13 +206,12 @@ def verificar_noticia():
         log_info(f"   - Mantidos: {resultado_scraping_filtrado['metadata']['total_sucesso']}")
         log_info(f"   - Filtrados: {resultado_scraping_filtrado['metadata'].get('total_filtrados', 0)}")
 
-        # ETAPA 6: ANÁLISE SEMÂNTICA COM IA (✅ AGORA COM DETECÇÃO DE CONTRADIÇÃO)
+        # ETAPA 6: ANÁLISE SEMÂNTICA COM IA (COM DETECÇÃO DE CONTRADIÇÃO)
         log_info(f"🔬 Analisando similaridade semântica com IA...")
         resultado_analise = analisar_semantica(texto_para_analise, resultado_scraping_filtrado)
 
         log_info(f"✅ Análise semântica concluída:")
         
-        # ✅ NOVO: Log de contradições
         contradizem = resultado_analise['metadata'].get('contradizem', 0)
         if contradizem > 0:
             log_info(f"   - ⚠️  CONTRADIZEM: {contradizem}")
@@ -187,7 +220,7 @@ def verificar_noticia():
         log_info(f"   - Confirmam parcial: {resultado_analise['metadata']['confirmam_parcial']}")
         log_info(f"   - Apenas mencionam: {resultado_analise['metadata']['apenas_mencionam']}")
 
-        # ETAPA 7: CÁLCULO DE VERACIDADE FINAL (✅ AGORA COM PENALIDADE POR CONTRADIÇÃO)
+        # ETAPA 7: CÁLCULO DE VERACIDADE FINAL (COM PENALIDADE POR CONTRADIÇÃO)
         log_info(f"🎯 Calculando veracidade final...")
         resultado_score = calcular_veracidade(resultado_analise, {
             'tipo_entrada': tipo,
@@ -198,14 +231,12 @@ def verificar_noticia():
         log_info(f"✅ Score calculado: {resultado_score['veracidade']}%")
         log_info(f"   Nível de confiança: {resultado_score['nivel_confianca']}")
         
-        # ✅ NOVO: Log se há contradições
         if contradizem > 0:
             log_info(f"   ⚠️  ALERTA: {contradizem} fonte(s) contradizem a informação!")
 
         # Preparar fontes consultadas
         fontes_consultadas = []
 
-        # Primeiro, coletar TODAS as URLs originais do resultado da busca
         urls_originais_busca = {}
         for fonte_nome, fonte_resultados in resultado_busca_filtrado.items():
             if fonte_nome == 'metadata':
@@ -238,8 +269,8 @@ def verificar_noticia():
                         "similaridade": analise.get('similaridade', 0),
                         "status": analise.get('status', ''),
                         "motivo": analise.get('motivo', ''),
-                        "contradiz": analise.get('contradiz', False),  # ✅ NOVO
-                        "confianca_contradicao": analise.get('confianca_contradicao', 0.0)  # ✅ NOVO
+                        "contradiz": analise.get('contradiz', False),
+                        "confianca_contradicao": analise.get('confianca_contradicao', 0.0)
                     })
 
         fontes_consultadas.sort(key=lambda x: x['similaridade'], reverse=True)
@@ -253,11 +284,8 @@ def verificar_noticia():
             "nivel_confianca": resultado_score['nivel_confianca'],
             "titulo_analisado": titulo_noticia,
             "tamanho_texto_analisado": len(texto_para_analise),
-            
-            # ✅ NOVO: Alerta de contradição
             "alerta_contradicao": contradizem > 0,
             "total_contradicoes": contradizem,
-            
             "calculo_detalhado": resultado_score['detalhes'],
             "analise_nlp": {
                 "entidades_encontradas": resultado_nlp['entidades'][:5],
@@ -267,7 +295,7 @@ def verificar_noticia():
             },
             "analise_semantica": {
                 "total_analisados": meta_analise['total_analisados'],
-                "contradizem": meta_analise.get('contradizem', 0),  # ✅ NOVO
+                "contradizem": meta_analise.get('contradizem', 0),
                 "confirmam_forte": meta_analise['confirmam_forte'],
                 "confirmam_parcial": meta_analise['confirmam_parcial'],
                 "apenas_mencionam": meta_analise['apenas_mencionam'],
@@ -278,7 +306,7 @@ def verificar_noticia():
                 "tipo_entrada": tipo,
                 "url_original": url_original,
                 "tamanho_conteudo": len(texto_para_analise),
-                "versao_sistema": "1.0-final-contradicao",  # ✅ ATUALIZADO
+                "versao_sistema": "1.0-final-validation",
                 "total_fontes_consultadas": len(fontes_consultadas),
                 "fontes_disponiveis": len(Config.TRUSTED_SOURCES),
                 "processamento_nlp_completo": True,
@@ -286,7 +314,8 @@ def verificar_noticia():
                 "filtros_aplicados": True,
                 "scraping_realizado": True,
                 "analise_semantica_realizada": True,
-                "deteccao_contradicao_ativa": True,  # ✅ NOVO
+                "deteccao_contradicao_ativa": True,
+                "validacao_texto_ativa": True,  # ✅ NOVO
                 "scoring_completo": True,
                 "total_resultados_busca": resultado_busca['metadata']['total_resultados'],
                 "total_scraped": resultado_scraping_filtrado['metadata']['total_scraped'],
@@ -299,7 +328,6 @@ def verificar_noticia():
             f"🎉 Análise concluída com sucesso | veracidade={resposta['veracidade']}% | fontes={len(fontes_consultadas)}"
         )
         
-        # ✅ NOVO: Log final de alerta
         if contradizem > 0:
             log_info(f"🚨 ALERTA FINAL: Detectada provável FAKE NEWS!")
 
@@ -319,8 +347,8 @@ def health_check():
     """Endpoint para verificar se a API está online."""
     return jsonify({
         "status": "online",
-        "versao": "1.0-final-contradicao",
-        "mensagem": "News Verifier API está funcionando com detecção de contradição!",
+        "versao": "1.0-final-validation",
+        "mensagem": "News Verifier API com validação de texto!",
         "modulos_ativos": [
             "extractor",
             "nlp_processor",
@@ -328,7 +356,8 @@ def health_check():
             "filters",
             "scraper",
             "semantic_analyzer (com detecção de contradição)",
-            "scorer (com penalidade por contradição)"
+            "scorer (com penalidade por contradição)",
+            "text_validator (validação de qualidade)"  # ✅ NOVO
         ]
     }), 200
 
@@ -338,8 +367,8 @@ def index():
     """Rota raiz - Informações sobre a API"""
     return jsonify({
         "nome": "News Verifier API",
-        "versao": "1.0-complete-contradicao",
-        "descricao": "Sistema de Verificação de Veracidade de Notícias com IA e Detecção de Fake News",
+        "versao": "1.0-complete-validation",
+        "descricao": "Sistema de Verificação de Veracidade com IA e Validação de Texto",
         "endpoints": {
             "POST /api/verificar": "Verificar veracidade de notícia",
             "GET /api/health": "Verificar status da API",
@@ -352,13 +381,14 @@ def index():
             "sentence-transformers (IA Semântica)",
             "newspaper3k",
             "BeautifulSoup",
-            "Detecção de Contradição (Análise Linguística)"
+            "Detecção de Contradição",
+            "Validação de Qualidade de Texto"  # ✅ NOVO
         ],
         "novidades": [
             "✅ Detecção automática de contradições",
             "✅ Penalidade severa para fake news",
-            "✅ Análise de padrões de desmentido",
-            "✅ Identificação de palavras de negação"
+            "✅ Validação de qualidade de texto",  # ✅ NOVO
+            "✅ Rejeita textos repetitivos/inválidos"  # ✅ NOVO
         ]
     }), 200
 
@@ -368,7 +398,7 @@ if __name__ == '__main__':
     log_info("🚀 Iniciando News Verifier API...")
     log_info("=" * 70)
     log_info(f"📍 Servidor rodando em: http://127.0.0.1:{Config.PORT}")
-    log_info(f"📍 Versão: 1.0-final-contradicao (COM DETECÇÃO DE FAKE NEWS)")
+    log_info(f"📍 Versão: 1.0-final-validation (COM VALIDAÇÃO DE TEXTO)")
     log_info(f"📍 Pressione Ctrl+C para parar o servidor")
     log_info("=" * 70)
     log_info()
@@ -380,6 +410,7 @@ if __name__ == '__main__':
     log_info("   5. ✅ Scraper (Conteúdo)")
     log_info("   6. ✅ Semantic Analyzer (IA + Detecção de Contradição)")
     log_info("   7. ✅ Scorer (Veracidade + Penalidade por Fake News)")
+    log_info("   8. ✅ Text Validator (Validação de Qualidade)")  # ✅ NOVO
     log_info("=" * 70)
     log_info()
 

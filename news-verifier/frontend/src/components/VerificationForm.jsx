@@ -6,6 +6,7 @@ const INPUT_TYPES = {
     label: 'Validar por URL',
     placeholder: 'https://exemplo.com/noticia-importante',
     minLength: 10,
+    maxLength: 500,  // URLs podem ser maiores
     helpText: 'Informe o endereço completo da notícia que será analisada.',
     errorText: 'Informe uma URL válida com pelo menos 10 caracteres.'
   },
@@ -13,8 +14,9 @@ const INPUT_TYPES = {
     label: 'Validar por texto',
     placeholder: 'Cole o conteúdo da notícia que deseja analisar...',
     minLength: 50,
-    helpText: 'Insira o texto completo da notícia. Mínimo de 50 caracteres para análise precisa.',
-    errorText: 'Insira pelo menos 50 caracteres para permitir a análise.'
+    maxLength: 300,  // ✅ LIMITE DE 300 CARACTERES
+    helpText: 'Insira o texto completo da notícia. Mínimo 50, máximo 300 caracteres.',
+    errorText: 'Insira entre 50 e 300 caracteres para análise.'
   }
 };
 

@@ -128,7 +128,7 @@ class Config:
     MIN_CONTENT_LENGTH = int(os.getenv('MIN_CONTENT_LENGTH', 50))
     
     # Tamanho máximo do conteúdo (caracteres)
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 10000))
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 300))
     
     # Número máximo de palavras-chave a extrair
     MAX_KEYWORDS = 10

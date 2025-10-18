@@ -13,29 +13,13 @@ const STATUS_COPY = {
   }
 };
 
-export const PORTAL_LOGOS = {
-  'G1': { src: '/assets/g1-logo.png', alt: 'G1' },
-  'Folha de S.Paulo': { src: '/assets/logo-folha.png', alt: 'Folha de S.Paulo' },
-  'UOL Notícias': { src: '/assets/uol-logo.jpg', alt: 'UOL Notícias' },
-  'IstoÉ': { src: '/assets/istoe-logo.jpeg', alt: 'IstoÉ' },
-  'Estadão': { src: '/assets/estadao-logo.png', alt: 'Estadão' }
-};
-
-const renderPortalLogo = (name) => {
-  const logo = PORTAL_LOGOS[name];
-
-  if (!logo) {
-    return '🌐';
-  }
-
-  return (
-    <img
-      src={logo.src}
-      alt={logo.alt || name}
-      className="portal-logo-image"
-      loading="lazy"
-    />
-  );
+// Logos dos portais (base64 ou URL)
+const PORTAL_LOGOS = {
+  'G1': '🌐',
+  'Folha de S.Paulo': '📰',
+  'UOL Notícias': '📱',
+  'IstoÉ': '📄',
+  'Estadão': '📰'
 };
 
 function SourceModal({ source, onClose }) {
@@ -50,7 +34,7 @@ function SourceModal({ source, onClose }) {
         
         <div className="modal-header">
           <div className="modal-logo">
-            {renderPortalLogo(source.name)}
+            {PORTAL_LOGOS[source.name] || '🌐'}
           </div>
           <div>
             <h3>{source.name}</h3>
@@ -100,13 +84,68 @@ export default function VerificationResult({ status, result }) {
     );
   }
 
+  // Se não há resultado, mostrar estado vazio
   if (!result) {
     const { title, description } = STATUS_COPY[status] ?? STATUS_COPY.idle;
     return (
       <div className="card card--glass empty">
         <div>
-          <h3>{title}</h3>
-          {description && <p>{description}</p>}
+          {status === 'error' ? (
+            <>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+              <h3 style={{ color: '#dc2626', marginBottom: '0.5rem' }}>{title}</h3>
+              {description && <p style={{ color: '#64748b' }}>{description}</p>}
+            </>
+          ) : (
+            <>
+              <h3>{title}</h3>
+              {description && <p>{description}</p>}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ NOVO: Se score é 0 ou muito baixo, mostrar como erro sem roda
+  if (veracity_score === 0 || (veracity_score < 15 && result.summary && result.summary.includes('insuficientes'))) {
+    return (
+      <div className="card card--result">
+        <div className="result__content">
+          <div className="result__label">RESULTADO DA ANÁLISE</div>
+          
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '1rem',
+            padding: '1.5rem',
+            background: 'rgba(239, 68, 68, 0.05)',
+            borderRadius: '12px',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            marginTop: '1rem'
+          }}>
+            <div style={{ fontSize: '2.5rem' }}>⚠️</div>
+            <div>
+              <h3 style={{ margin: 0, color: '#dc2626', fontSize: '1.1rem' }}>
+                Dados insuficientes para validação
+              </h3>
+              <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
+                {summary}
+              </p>
+            </div>
+          </div>
+
+          {Array.isArray(signals) && signals.length > 0 && (
+            <ul className="result__signals" style={{ marginTop: '1rem' }}>
+              {signals.map((signal, index) => (
+                <li key={index}>{signal}</li>
+              ))}
+            </ul>
+          )}
+
+          <div className="confidence-badge confidence-badge--baixo" style={{ marginTop: '1rem' }}>
+            O texto fornecido não atende aos requisitos mínimos para análise
+          </div>
         </div>
       </div>
     );
@@ -168,7 +207,7 @@ export default function VerificationResult({ status, result }) {
                     onClick={() => setSelectedSource(source)}
                   >
                     <div className="source-logo">
-                      {renderPortalLogo(source.name)}
+                      {PORTAL_LOGOS[source.name] || '🌐'}
                     </div>
                     <div className="source-name">{source.name}</div>
                     <div className="source-similarity">
