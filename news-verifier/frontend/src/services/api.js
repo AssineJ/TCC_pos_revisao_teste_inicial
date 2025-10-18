@@ -22,7 +22,7 @@ export async function verifyNewsRequest(type, payload) {
   try {
     const requestBody = buildPayload(type, payload);
     
-    console.log(' Enviando para API:', {
+    console.log('Enviando para API:', {
       url: `${baseURL}/verificar`,
       typeRecebido: type,
       tipoEnviado: requestBody.tipo,
@@ -37,11 +37,11 @@ export async function verifyNewsRequest(type, payload) {
       signal: controller.signal
     });
 
-    console.log(' Status da resposta:', response.status);
+    console.log('Status da resposta:', response.status);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error(' Erro do backend:', errorData);
+      console.error('Erro do backend:', errorData);
       throw new Error(errorData.erro || `Falha na API: ${response.status}`);
     }
 
@@ -50,7 +50,7 @@ export async function verifyNewsRequest(type, payload) {
       throw new Error('Resposta inválida da API');
     }
 
-    console.log(' Resposta completa do backend:', JSON.stringify(data, null, 2));
+    console.log('Resposta completa do backend:', JSON.stringify(data, null, 2));
 
     const vRaw = data?.veracidade ?? 0;
     const veracidade =

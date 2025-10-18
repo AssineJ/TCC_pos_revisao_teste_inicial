@@ -47,7 +47,7 @@ const INPUT_TYPES = {
     label: 'Validar por URL',
     placeholder: 'https://exemplo.com/noticia-importante',
     minLength: 10,
-    maxLength: 500,  // URLs podem ser maiores
+    maxLength: 500,  
     helpText: 'Informe o endereço completo da notícia que será analisada.',
     errorText: 'Informe uma URL válida com pelo menos 10 caracteres.'
   },
@@ -55,7 +55,7 @@ const INPUT_TYPES = {
     label: 'Validar por texto',
     placeholder: 'Cole o conteúdo da notícia que deseja analisar...',
     minLength: 50,
-    maxLength: 500,  // ✅ LIMITE DE 500 CARACTERES
+    maxLength: 500,  
     helpText: 'Insira o texto completo da notícia. Mínimo 50, máximo 500 caracteres e sem palavrões.',
     errorText: 'Insira entre 50 e 500 caracteres sem palavras de baixo calão.'
   }
@@ -91,23 +91,23 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
   const isFormValid =
     charCount >= currentConfig.minLength && isWithinMax && !containsProfanity;
 
-  // Validação de qualidade em tempo real
+  
   useEffect(() => {
     if (form.mode === 'text' && charCount >= 50) {
       const text = form.value.trim();
       
-      // Detectar repetições excessivas
+      
       const hasExcessiveRepetition = /(.)\1{5,}/.test(text);
       
-      // Detectar poucas palavras únicas
+      
       const words = text.toLowerCase().match(/\b\w+\b/g) || [];
       const uniqueWords = new Set(words).size;
       const repetitionRatio = words.length > 0 ? uniqueWords / words.length : 1;
       
       if (hasExcessiveRepetition) {
-        setTextQualityWarning('⚠️ Texto com caracteres repetidos excessivamente');
+        setTextQualityWarning('Texto com caracteres repetidos excessivamente');
       } else if (repetitionRatio < 0.3 && words.length > 5) {
-        setTextQualityWarning('⚠️ Texto parece ter muitas palavras repetidas');
+        setTextQualityWarning('Texto parece ter muitas palavras repetidas');
       } else {
         setTextQualityWarning('');
       }
@@ -118,7 +118,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
 
   useEffect(() => {
     if (form.mode === 'text' && containsProfanity) {
-      setProfanityWarning('❌ Texto contém palavras de baixo calão. Remova-as para continuar.');
+      setProfanityWarning('Texto contém palavras de baixo calão. Remova-as para continuar.');
     } else {
       setProfanityWarning('');
     }
@@ -140,7 +140,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
       return;
     }
 
-    console.log('📤 Enviando verificação:', {
+    console.log('Enviando verificação:', {
       mode: form.mode,
       type: form.mode,
       payload: form.value.trim(),
@@ -183,7 +183,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
             margin: '0.5rem 0 0',
             border: '1px solid rgba(59, 130, 246, 0.2)'
           }}>
-            ⏳ <strong>Tempo estimado:</strong> 1-3 minutos. Aguarde enquanto analisamos múltiplas fontes confiáveis.
+             <strong>Tempo estimado:</strong> 1-3 minutos. Aguarde enquanto analisamos múltiplas fontes confiáveis.
           </p>
         )}
       </header>
@@ -265,7 +265,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
           )}
           {isAtMaxLength && (
             <span className="form__warning">
-              ⚠️ Limite máximo de 500 caracteres atingido.
+               Limite máximo de 500 caracteres atingido.
             </span>
           )}
           {lastRequest && (

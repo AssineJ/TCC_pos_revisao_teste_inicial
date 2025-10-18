@@ -1,4 +1,4 @@
-# modules/scraper.py - Módulo de Scraping de Notícias
+                                                     
 """
 Responsabilidade:
     Extrair conteúdo completo das URLs encontradas pelo searcher.
@@ -25,9 +25,9 @@ import hashlib
 from datetime import datetime
 
 
-# ============================================================================
-# CLASSE DE CACHE PARA SCRAPING
-# ============================================================================
+                                                                              
+                               
+                                                                              
 
 class ScraperCache:
     """
@@ -84,7 +84,7 @@ class ScraperCache:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 cache_data = json.load(f)
             
-            # Verificar expiração
+                                 
             timestamp = cache_data.get('timestamp', 0)
             now = datetime.now().timestamp()
             
@@ -95,7 +95,7 @@ class ScraperCache:
             return cache_data.get('conteudo')
         
         except Exception as e:
-            print(f"⚠️  Erro ao ler cache de scraping: {e}")
+            print(f"  Erro ao ler cache de scraping: {e}")
             return None
     
     
@@ -123,12 +123,12 @@ class ScraperCache:
             with open(cache_file, 'w', encoding='utf-8') as f:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"⚠️  Erro ao salvar cache de scraping: {e}")
+            print(f"  Erro ao salvar cache de scraping: {e}")
 
 
-# ============================================================================
-# CLASSE PRINCIPAL - NEWS SCRAPER
-# ============================================================================
+                                                                              
+                                 
+                                                                              
 
 class NewsScraper:
     """
@@ -152,16 +152,16 @@ class NewsScraper:
         Returns:
             dict: Conteúdos extraídos ou dados da busca (título+snippet)
         """
-        print(f"\n📥 Iniciando scraping de notícias encontradas...")
+        print(f"\n Iniciando scraping de notícias encontradas...")
         
-        # Fontes problemáticas que devem usar apenas título+snippet
+                                                                   
         fontes_problematicas = Config.SOURCES_WITH_PAYWALL
         
         resultados_scraping = {}
         total_urls = 0
         total_sucesso = 0
         
-        # Para cada fonte
+                         
         for fonte_nome, fonte_resultados in resultados_busca.items():
             if fonte_nome == 'metadata':
                 continue
@@ -170,15 +170,15 @@ class NewsScraper:
                 resultados_scraping[fonte_nome] = []
                 continue
             
-            print(f"\n  📰 {fonte_nome}: {len(fonte_resultados)} URL(s)")
+            print(f"\n   {fonte_nome}: {len(fonte_resultados)} URL(s)")
             
-            # Verificar se é fonte problemática
+                                               
             if fonte_nome in fontes_problematicas:
-                print(f"    ⚠️  Fonte com paywall detectada - usando título+snippet")
+                print(f"      Fonte com paywall detectada - usando título+snippet")
                 conteudos = self._usar_titulo_snippet(fonte_resultados)
                 sucessos = len([c for c in conteudos if c['sucesso']])
             else:
-                # Extrair conteúdo normalmente
+                                              
                 urls = [item['url'] for item in fonte_resultados]
                 conteudos = self.scrape_urls(urls)
                 sucessos = sum(1 for c in conteudos if c['sucesso'])
@@ -188,12 +188,12 @@ class NewsScraper:
             total_urls += len(fonte_resultados)
             total_sucesso += sucessos
             
-            print(f"    ✅ {sucessos}/{len(fonte_resultados)} processados")
+            print(f"     {sucessos}/{len(fonte_resultados)} processados")
         
-        # Calcular taxa de sucesso
+                                  
         taxa_sucesso = (total_sucesso / total_urls * 100) if total_urls > 0 else 0
         
-        print(f"\n✅ Scraping concluído: {total_sucesso}/{total_urls} ({taxa_sucesso:.1f}%)")
+        print(f"\n Scraping concluído: {total_sucesso}/{total_urls} ({taxa_sucesso:.1f}%)")
         
         return {
             **resultados_scraping,
@@ -208,14 +208,14 @@ class NewsScraper:
     
     def _usar_titulo_snippet(self, resultados_busca):
         """
-        Usa título + snippet como "conteúdo" sem fazer scraping.
+        Usa título + snippet como "conteúdo"sem fazer scraping.
         Para fontes com paywall que bloqueiam acesso.
         
         Args:
             resultados_busca (list): Lista de resultados da busca
             
         Returns:
-            list: Lista com "conteúdo" montado a partir de título+snippet
+            list: Lista com "conteúdo"montado a partir de título+snippet
         """
         conteudos = []
         
@@ -224,10 +224,10 @@ class NewsScraper:
             snippet = resultado.get('snippet', '')
             url = resultado.get('url', '')
             
-            # Montar "texto" a partir de título + snippet
+                                                         
             texto_completo = f"{titulo}. {snippet}"
             
-            # Se o texto for muito curto, marcar como falha
+                                                           
             if len(texto_completo.strip()) < 30:
                 conteudos.append({
                     'url': url,
@@ -270,43 +270,43 @@ class NewsScraper:
         
         resultados = []
         
-        # Verificar cache primeiro
+                                  
         urls_para_scrape = []
         for url in urls:
             cache_result = self.cache.obter(url)
             if cache_result:
-                print(f"      💾 Cache hit: {url[:50]}...")
+                print(f"       Cache hit: {url[:50]}...")
                 resultados.append(cache_result)
             else:
                 urls_para_scrape.append(url)
         
-        # Se não há URLs para scrape (tudo em cache)
+                                                    
         if not urls_para_scrape:
             return resultados
         
-        # Processar URLs em paralelo (máximo 3 threads simultâneas)
+                                                                   
         max_workers = min(3, len(urls_para_scrape))
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submeter tarefas
+                              
             future_to_url = {
                 executor.submit(self._scrape_url_single, url): url 
                 for url in urls_para_scrape
             }
             
-            # Coletar resultados conforme completam
+                                                   
             for future in as_completed(future_to_url):
                 url = future_to_url[future]
                 try:
                     resultado = future.result()
                     resultados.append(resultado)
                     
-                    # Salvar no cache se sucesso
+                                                
                     if resultado['sucesso']:
                         self.cache.salvar(url, resultado)
                 
                 except Exception as e:
-                    print(f"      ❌ Erro ao processar {url[:50]}: {e}")
+                    print(f"       Erro ao processar {url[:50]}: {e}")
                     resultados.append({
                         'url': url,
                         'titulo': None,
@@ -331,24 +331,24 @@ class NewsScraper:
         Returns:
             dict: Conteúdo extraído
         """
-        # Garantir que URL está completa e não truncada
+                                                       
         if not url.startswith('http'):
             url = 'https://' + url
         
-        print(f"      🔄 Extraindo: {url[:80]}...")
+        print(f"       Extraindo: {url[:80]}...")
         
-        # Usar o extractor que já criamos
+                                         
         resultado = self.extractor.extract(url)
         
-        # IMPORTANTE: Manter URL original completa no resultado
-        resultado['url'] = url  # Garantir que URL não seja truncada
+                                                               
+        resultado['url'] = url                                      
         
         if resultado['sucesso']:
-            print(f"      ✅ Sucesso: {resultado['titulo'][:40]}...")
+            print(f"       Sucesso: {resultado['titulo'][:40]}...")
         else:
-            print(f"      ❌ Falha: {resultado['erro'][:40]}...")
+            print(f"       Falha: {resultado['erro'][:40]}...")
         
-        # Pequeno delay para não sobrecarregar
+                                              
         time.sleep(0.5)
         
         return resultado
@@ -364,26 +364,26 @@ class NewsScraper:
         Returns:
             dict: Conteúdo extraído
         """
-        # Verificar cache
+                         
         cache_result = self.cache.obter(url)
         if cache_result:
             return cache_result
         
-        # Extrair
+                 
         resultado = self._scrape_url_single(url)
         
-        # Salvar cache se sucesso
+                                 
         if resultado['sucesso']:
             self.cache.salvar(url, resultado)
         
         return resultado
 
 
-# ============================================================================
-# FUNÇÕES ADICIONADAS — SCRAPING PARALELO DE TODAS AS FONTES
-# ============================================================================
+                                                                              
+                                                            
+                                                                              
 
-# Singletons leves para uso nas funções paralelas
+                                                 
 _EXTRACTOR_SINGLETON = ContentExtractor()
 _SCRAPE_CACHE_SINGLETON = ScraperCache()
 
@@ -410,17 +410,17 @@ def extrair_conteudo_url(url_info):
             'erro': 'URL vazia'
         }
 
-    # cache
+           
     cache_hit = _SCRAPE_CACHE_SINGLETON.obter(url)
     if cache_hit:
         return fonte_nome, cache_hit
 
-    # normalizar
+                
     if not url.startswith("http"):
         url = "https://" + url
 
     try:
-        print(f"      🔄 (paralelo) Extraindo: {url[:80]}...")
+        print(f"       (paralelo) Extraindo: {url[:80]}...")
         res = _EXTRACTOR_SINGLETON.extract(url)
         res['url'] = url
         if not res.get('titulo') and titulo_prv:
@@ -445,27 +445,27 @@ def scrape_noticias_paralelo(resultado_busca):
     Respeita fontes com paywall usando título+snippet.
     Retorna no mesmo formato do scrape_noticias()/scrape_resultados_busca().
     """
-    # 1) Separar por tipo de processamento
+                                          
     fontes_paywall = set(Config.SOURCES_WITH_PAYWALL)
-    tarefas = []            # (fonte_nome, item_resultado_busca) -> scraping real
-    conteudos_por_fonte = {}  # dict fonte -> list(resultados)
+    tarefas = []                                                                 
+    conteudos_por_fonte = {}                                  
     total_urls = 0
     total_sucesso = 0
 
-    # Monta lista plana de tarefas e já resolve paywall
+                                                       
     for fonte_nome, resultados in resultado_busca.items():
         if fonte_nome == 'metadata':
             continue
 
         conteudos_por_fonte.setdefault(fonte_nome, [])
 
-        # resultados vazios
+                           
         if not resultados:
             continue
 
-        # Paywall: usa título+snippet
+                                     
         if fonte_nome in fontes_paywall:
-            print(f"  📰 {fonte_nome}: {len(resultados)} URL(s) (paywall) → título+snippet")
+            print(f"   {fonte_nome}: {len(resultados)} URL(s) (paywall) → título+snippet")
             for r in resultados:
                 titulo = r.get('title', '')
                 snippet = r.get('snippet', '')
@@ -487,15 +487,15 @@ def scrape_noticias_paralelo(resultado_busca):
                     total_sucesso += 1
             continue
 
-        # Normal: enfileira para scraping paralelo
-        print(f"  📰 {fonte_nome}: {len(resultados)} URL(s)")
+                                                  
+        print(f"   {fonte_nome}: {len(resultados)} URL(s)")
         for r in resultados:
             tarefas.append((fonte_nome, r))
             total_urls += 1
 
-    # 2) Executar scraping real em paralelo
+                                           
     if tarefas:
-        print(f"\n📥 Extraindo {len(tarefas)} URLs em PARALELO...")
+        print(f"\n Extraindo {len(tarefas)} URLs em PARALELO...")
         max_workers = min(10, len(tarefas))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {executor.submit(extrair_conteudo_url, info): info for info in tarefas}
@@ -508,7 +508,7 @@ def scrape_noticias_paralelo(resultado_busca):
                     total_sucesso += 1
 
     taxa_sucesso = (total_sucesso / total_urls * 100) if total_urls else 0.0
-    print(f"\n✅ Scraping (paralelo) concluído: {total_sucesso}/{total_urls} ({taxa_sucesso:.1f}%)")
+    print(f"\n Scraping (paralelo) concluído: {total_sucesso}/{total_urls} ({taxa_sucesso:.1f}%)")
 
     return {
         **conteudos_por_fonte,
@@ -522,9 +522,9 @@ def scrape_noticias_paralelo(resultado_busca):
     }
 
 
-# ============================================================================
-# FUNÇÃO DE CONVENIÊNCIA (sequencial já existente)
-# ============================================================================
+                                                                              
+                                                  
+                                                                              
 
 def scrape_noticias(resultados_busca):
     """
@@ -556,9 +556,9 @@ def scrape_noticias(resultados_busca):
     return scraper.scrape_resultados_busca(resultados_busca)
 
 
-# ============================================================================
-# TESTE DO MÓDULO
-# ============================================================================
+                                                                              
+                 
+                                                                              
 
 if __name__ == "__main__":
     """
@@ -567,11 +567,11 @@ if __name__ == "__main__":
     """
     
     print("=" * 70)
-    print("🧪 TESTANDO MÓDULO SCRAPER")
+    print("TESTANDO MÓDULO SCRAPER")
     print("=" * 70)
     print()
     
-    # Simular resultado de busca (normalmente viria do searcher)
+                                                                
     resultados_busca_mock = {
         'G1': [
             {
@@ -593,17 +593,17 @@ if __name__ == "__main__":
         }
     }
     
-    print("📝 Simulando busca com 2 URLs...")
+    print("Simulando busca com 2 URLs...")
     print()
     
-    # Sequencial (classe)
+                         
     conteudos_seq = scrape_noticias(resultados_busca_mock)
-    # Paralelo (todas as fontes)
+                                
     conteudos_par = scrape_noticias_paralelo(resultados_busca_mock)
     
-    # Mostrar resultados
+                        
     print("\n" + "=" * 70)
-    print("✅ RESULTADOS DO SCRAPING (PARALELO):")
+    print("RESULTADOS DO SCRAPING (PARALELO):")
     print("=" * 70)
     print()
     
@@ -611,21 +611,21 @@ if __name__ == "__main__":
         if fonte_nome == 'metadata':
             continue
         
-        print(f"📰 {fonte_nome}:")
+        print(f" {fonte_nome}:")
         for i, conteudo in enumerate(fonte_conteudos, 1):
             print(f"\n  {i}. URL: {conteudo['url'][:60]}...")
             if conteudo['sucesso']:
-                print(f"     ✅ Título: {conteudo.get('titulo','')[:50]}...")
-                print(f"     📄 Texto: {len(conteudo.get('texto','') or '')} caracteres")
-                print(f"     📅 Data: {conteudo.get('data_publicacao')}")
-                print(f"     ✍️  Autor: {conteudo.get('autor')}")
+                print(f"      Título: {conteudo.get('titulo','')[:50]}...")
+                print(f"      Texto: {len(conteudo.get('texto','') or '')} caracteres")
+                print(f"      Data: {conteudo.get('data_publicacao')}")
+                print(f"       Autor: {conteudo.get('autor')}")
             else:
-                print(f"     ❌ Erro: {conteudo.get('erro')}")
+                print(f"      Erro: {conteudo.get('erro')}")
         print()
     
-    # Metadata
+              
     meta = conteudos_par['metadata']
-    print("📊 ESTATÍSTICAS (PARALELO):")
+    print("ESTATÍSTICAS (PARALELO):")
     print(f"  Total processado: {meta['total_scraped']}")
     print(f"  Sucessos: {meta['total_sucesso']}")
     print(f"  Falhas: {meta['total_falhas']}")

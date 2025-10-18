@@ -49,12 +49,12 @@ O backend orquestra as etapas abaixo sempre que o endpoint `/api/verificar` rece
 ## Estrutura de pastas
 ```
 news-verifier/
-├── app.py               # API Flask principal
-├── config.py            # Parâmetros globais do sistema
-├── modules/             # Núcleo de IA, busca, scraping e scoring
-├── frontend/            # Aplicação React (Vite)
-├── requirements.txt     # Dependências Python
-└── tests/               # Scripts utilitários e diagnósticos
+|-- app.py               API Flask principal
+|-- config.py            Parâmetros globais do sistema
+|-- modules/             Núcleo de IA, busca, scraping e scoring
+|-- frontend/            Aplicação React (Vite)
+|-- requirements.txt     Dependências Python
+`-- tests/               Scripts utilitários e diagnósticos
 ```
 
 ## Configuração do ambiente

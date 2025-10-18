@@ -20,10 +20,10 @@ export default function useNewsVerification() {
     try {
       const response = await verifyNewsRequest(type, payload);
 
-      // ✅ LOG: Mostra o que foi recebido
-      console.log('✅ Resposta processada:', response);
+      
+      console.log('Resposta processada:', response);
 
-      // ✅ CORREÇÃO: Mantém a estrutura exata retornada pela API
+      
       setResult({
         veracity_score: response.veracity_score,
         summary: response.summary,
@@ -41,17 +41,17 @@ export default function useNewsVerification() {
     } catch (error) {
       console.error('Erro ao verificar notícia:', error);
       
-      // Detectar se foi timeout
+      
       const isTimeout = error.name === 'AbortError' || error.message.includes('aborted');
       
-      // ✅ Detectar se foi erro de validação de texto
+      
       const isValidationError = error.message.includes('insuficientes') || error.message.includes('repetid');
       
-      // ✅ CORREÇÃO: Define um result apropriado
+      
       setResult({
-        veracity_score: 0,  // ✅ Score 0 para erros
+        veracity_score: 0,  
         summary: error.message || (isTimeout 
-          ? '⏱️ A análise excedeu o tempo limite de 4 minutos.'
+          ? 'A análise excedeu o tempo limite de 4 minutos.'
           : 'Não foi possível concluir a análise.'),
         related_sources: [],
         signals: isValidationError 

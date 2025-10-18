@@ -1,11 +1,11 @@
 from modules.extractor import extrair_conteudo
 
 print("=" * 70)
-print("🧪 TESTE: EXTRACTOR MELHORADO (6 ESTRATÉGIAS)")
+print("TESTE: EXTRACTOR MELHORADO (6 ESTRATÉGIAS)")
 print("=" * 70)
 print()
 
-# URLs de teste (diferentes níveis de dificuldade)
+                                                  
 urls_teste = [
     {
         "nome": "G1 (fácil)",
@@ -31,28 +31,28 @@ for i, teste in enumerate(urls_teste, 1):
     resultado = extrair_conteudo(teste['url'])
     
     if resultado['sucesso']:
-        print(f"✅ SUCESSO ({resultado['metodo_extracao']})")
+        print(f"SUCESSO ({resultado['metodo_extracao']})")
         print(f"   Título: {resultado['titulo'][:60]}...")
         print(f"   Texto: {len(resultado['texto'])} caracteres")
         print(f"   Palavras: {len(resultado['texto'].split())} palavras")
         resultados.append(True)
     else:
-        print(f"❌ FALHOU")
+        print(f"FALHOU")
         print(f"   Erro: {resultado['erro']}")
         resultados.append(False)
 
 print()
 print("=" * 70)
-print("📊 RESULTADO:")
+print("RESULTADO:")
 print("=" * 70)
 sucessos = sum(resultados)
 total = len(resultados)
-print(f"✅ Sucessos: {sucessos}/{total} ({sucessos/total*100:.0f}%)")
+print(f"Sucessos: {sucessos}/{total} ({sucessos/total*100:.0f}%)")
 print()
 
 if sucessos == total:
-    print("🎉 EXTRACTOR MELHORADO FUNCIONANDO PERFEITAMENTE!")
+    print("EXTRACTOR MELHORADO FUNCIONANDO PERFEITAMENTE!")
 elif sucessos >= total * 0.7:
-    print("✅ Extractor funcionando bem!")
+    print("Extractor funcionando bem!")
 else:
-    print("⚠️  Extractor precisa de ajustes")
+    print("  Extractor precisa de ajustes")

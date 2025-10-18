@@ -14,14 +14,14 @@ for chave in resultado.keys():
 print()
 
 print("Conteúdo de metadata:")
-if 'metadata' in resultado:
+if 'metadata'in resultado:
     for chave, valor in resultado['metadata'].items():
         print(f"  {chave}: {valor}")
 else:
     print("  METADATA NÃO ENCONTRADO!")
 print()
 
-# Mostrar estrutura JSON completa
+                                 
 import json
 print("Estrutura JSON completa:")
 print(json.dumps(resultado, indent=2, ensure_ascii=False)[:500])

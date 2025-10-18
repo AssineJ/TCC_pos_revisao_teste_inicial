@@ -1,11 +1,11 @@
 from modules.nlp_processor import processar_texto
 
 print("=" * 70)
-print("🧪 TESTES DO NLP PROCESSOR COM DIFERENTES TEXTOS")
+print("TESTES DO NLP PROCESSOR COM DIFERENTES TEXTOS")
 print("=" * 70)
 print()
 
-# Lista de textos para testar
+                             
 textos_teste = [
     {
         "nome": "Notícia Política",
@@ -29,7 +29,7 @@ for i, item in enumerate(textos_teste, 1):
     
     resultado = processar_texto(item['texto'])
     
-    print(f"🏷️  Entidades: {[e['texto'] for e in resultado['entidades'][:3]]}")
-    print(f"🔑 Palavras-chave: {resultado['palavras_chave'][:5]}")
-    print(f"🔍 Query: {resultado['query_busca']}")
+    print(f"  Entidades: {[e['texto'] for e in resultado['entidades'][:3]]}")
+    print(f"Palavras-chave: {resultado['palavras_chave'][:5]}")
+    print(f"Query: {resultado['query_busca']}")
     print()
