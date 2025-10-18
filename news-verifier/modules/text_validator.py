@@ -46,6 +46,39 @@ def _detectar_sequencia_repetida(palavras, repeticoes_min=3):
     return None
 
 
+def _detectar_sequencia_repetida(palavras, repeticoes_min=3):
+    """Identifica padrões de palavras repetidas em sequência.
+
+    Procura por n-gramas (2 a 5 palavras) que apareçam repetidamente no texto.
+    Retorna a sequência mais recorrente quando ela cobre a maior parte do texto,
+    indicando que provavelmente trata-se de conteúdo duplicado ou sem contexto.
+    """
+
+    if len(palavras) < repeticoes_min * 2:
+        return None
+
+    max_window = min(5, max(2, len(palavras) // repeticoes_min))
+
+    for tamanho in range(2, max_window + 1):
+        ngramas = Counter(
+            tuple(palavras[i:i + tamanho])
+            for i in range(len(palavras) - tamanho + 1)
+        )
+
+        if not ngramas:
+            continue
+
+        sequencia, frequencia = ngramas.most_common(1)[0]
+
+        if frequencia >= repeticoes_min:
+            cobertura = (frequencia * tamanho) / len(palavras)
+
+            if cobertura >= 0.6:
+                return ' '.join(sequencia), frequencia
+
+    return None
+
+
 def validar_qualidade_texto(texto: str) -> dict:
     """
     Valida se o texto tem qualidade suficiente para análise.

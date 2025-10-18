@@ -1,22 +1,19 @@
 import builtins
 import logging
 import os
-import re
-import sys
 from logging.handlers import RotatingFileHandler
-from urllib.parse import urlparse
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from config import Config
 from modules.extractor import extrair_conteudo
-from modules.filters import filtrar_busca, filtrar_scraping
 from modules.nlp_processor import processar_texto
-from modules.scorer import calcular_veracidade
-from modules.scraper import scrape_noticias_paralelo as scrape_noticias
 from modules.searcher import buscar_noticias
+from modules.filters import filtrar_busca, filtrar_scraping
+from modules.scraper import scrape_noticias_paralelo as scrape_noticias
 from modules.semantic_analyzer import analisar_semantica
-from modules.text_validator import validar_qualidade_texto
+from modules.scorer import calcular_veracidade
+import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -83,63 +80,32 @@ def verificar_noticia():
         tipo = dados['tipo']
         conteudo = dados['conteudo']
 
-        if not isinstance(conteudo, str):
-            return jsonify({
-                "erro": Config.ERROR_MESSAGES['INVALID_CONTENT_TYPE'],
-                "codigo": "INVALID_CONTENT_TYPE"
-            }), 400
-
-        conteudo = conteudo.strip()
-
         if tipo not in ['url', 'texto']:
             return jsonify({
                 "erro": "Tipo deve ser 'url' ou 'texto'",
                 "codigo": "INVALID_TYPE"
             }), 400
 
-        if not conteudo:
+        if not conteudo or not conteudo.strip():
             return jsonify({
                 "erro": "Conteúdo não pode estar vazio",
                 "codigo": "EMPTY_CONTENT"
             }), 400
 
-        if len(conteudo) < Config.MIN_CONTENT_LENGTH:
+        if len(conteudo.strip()) < Config.MIN_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_SHORT'],
                 "codigo": "CONTENT_TOO_SHORT"
             }), 422
 
-        if tipo == 'texto' and len(conteudo) > Config.MAX_TEXT_INPUT_LENGTH:
-            return jsonify({
-                "erro": Config.ERROR_MESSAGES['TEXT_TOO_LONG'],
-                "codigo": "TEXT_TOO_LONG"
-            }), 422
-
-        if len(conteudo) > Config.MAX_CONTENT_LENGTH:
+        if len(conteudo.strip()) > Config.MAX_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_LONG'],
                 "codigo": "CONTENT_TOO_LONG"
             }), 422
 
-        if tipo == 'url':
-            url_matches = re.findall(r'https?://[^\s]+', conteudo, flags=re.IGNORECASE)
-
-            if len(url_matches) != 1 or url_matches[0] != conteudo:
-                return jsonify({
-                    "erro": Config.ERROR_MESSAGES['MULTIPLE_URLS'],
-                    "codigo": "MULTIPLE_URLS"
-                }), 422
-
-            parsed = urlparse(conteudo)
-            scheme = parsed.scheme.lower() if parsed.scheme else ''
-            if scheme not in ('http', 'https') or not parsed.netloc:
-                return jsonify({
-                    "erro": Config.ERROR_MESSAGES['INVALID_URL'],
-                    "codigo": "INVALID_URL"
-                }), 422
-
         log_info(
-            f"📨 Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo)}"
+            f"📨 Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo.strip())}"
         )
 
         # ETAPA 2: EXTRAIR CONTEÚDO (se for URL)
@@ -165,18 +131,6 @@ def verificar_noticia():
         else:
             texto_para_analise = conteudo
             titulo_noticia = texto_para_analise[:100] + "..."
-
-        # ETAPA 2.5: VALIDAR QUALIDADE DO TEXTO BASE
-        avaliacao_texto = validar_qualidade_texto(texto_para_analise)
-
-        if not avaliacao_texto['valido']:
-            log_info("⚠️ Texto com baixa qualidade identificado. Interrompendo análise.")
-            return jsonify({
-                "erro": "Dados fornecidos insuficientes para uma validação confiável.",
-                "mensagem_usuario": "Dados fornecidos insuficientes para uma validação. Revise o texto e tente novamente.",
-                "codigo": "LOW_TEXT_QUALITY",
-                "detalhes": avaliacao_texto
-            }), 422
 
         # ETAPA 3: PROCESSAR COM NLP (IA!)
         log_info(f"🤖 Processando texto com IA...")
@@ -277,7 +231,6 @@ def verificar_noticia():
                     else:
                         url_final = url_analise
 
-                    data_publicacao = analise.get('data_publicacao')
                     fontes_consultadas.append({
                         "nome": fonte_nome,
                         "url": url_final,
@@ -286,8 +239,7 @@ def verificar_noticia():
                         "status": analise.get('status', ''),
                         "motivo": analise.get('motivo', ''),
                         "contradiz": analise.get('contradiz', False),  # ✅ NOVO
-                        "confianca_contradicao": analise.get('confianca_contradicao', 0.0),  # ✅ NOVO
-                        "data_publicacao": data_publicacao
+                        "confianca_contradicao": analise.get('confianca_contradicao', 0.0)  # ✅ NOVO
                     })
 
         fontes_consultadas.sort(key=lambda x: x['similaridade'], reverse=True)

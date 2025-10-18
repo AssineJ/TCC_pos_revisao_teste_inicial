@@ -129,9 +129,6 @@ class Config:
     
     # Tamanho máximo do conteúdo (caracteres)
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 10000))
-
-    # Tamanho máximo aceito quando o texto é fornecido diretamente na validação (caracteres)
-    MAX_TEXT_INPUT_LENGTH = int(os.getenv('MAX_TEXT_INPUT_LENGTH', 300))
     
     # Número máximo de palavras-chave a extrair
     MAX_KEYWORDS = 10
@@ -272,10 +269,7 @@ class Config:
         'EMPTY_CONTENT': 'Conteúdo não pode estar vazio',
         'CONTENT_TOO_SHORT': f'Conteúdo muito curto para análise (mínimo {MIN_CONTENT_LENGTH} caracteres)',
         'CONTENT_TOO_LONG': f'Conteúdo muito longo (máximo {MAX_CONTENT_LENGTH} caracteres)',
-        'TEXT_TOO_LONG': f'Texto excede o limite de {MAX_TEXT_INPUT_LENGTH} caracteres para análise direta.',
         'INVALID_URL': 'URL inválida ou inacessível',
-        'INVALID_CONTENT_TYPE': 'Conteúdo deve ser enviado como texto simples.',
-        'MULTIPLE_URLS': 'Forneça apenas uma URL por vez para validação.',
         'TIMEOUT': 'Tempo limite excedido durante a análise',
         'NO_CONTENT_EXTRACTED': 'Não foi possível extrair conteúdo da URL',
         'ALL_SOURCES_FAILED': 'Todas as fontes falharam. Tente novamente mais tarde',
@@ -416,12 +410,6 @@ def validate_config():
     
     if Config.MAX_CONTENT_LENGTH < Config.MIN_CONTENT_LENGTH:
         errors.append("MAX_CONTENT_LENGTH deve ser maior que MIN_CONTENT_LENGTH")
-
-    if Config.MAX_TEXT_INPUT_LENGTH < Config.MIN_CONTENT_LENGTH:
-        errors.append("MAX_TEXT_INPUT_LENGTH deve ser maior ou igual ao MIN_CONTENT_LENGTH")
-
-    if Config.MAX_TEXT_INPUT_LENGTH > Config.MAX_CONTENT_LENGTH:
-        errors.append("MAX_TEXT_INPUT_LENGTH não pode exceder MAX_CONTENT_LENGTH")
     
     # Validar scores
     if not (0 <= Config.MIN_VERACITY_SCORE < Config.MAX_VERACITY_SCORE <= 100):
