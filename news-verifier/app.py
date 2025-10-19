@@ -80,6 +80,7 @@ def verificar_noticia():
 
         tipo = dados['tipo']
         conteudo = dados['conteudo']
+        conteudo_limpo = conteudo.strip()
 
         if tipo not in ['url', 'texto']:
             return jsonify({
@@ -87,34 +88,41 @@ def verificar_noticia():
                 "codigo": "INVALID_TYPE"
             }), 400
 
-        if not conteudo or not conteudo.strip():
+        if not conteudo_limpo:
             return jsonify({
                 "erro": "Conteúdo não pode estar vazio",
                 "codigo": "EMPTY_CONTENT"
             }), 400
 
-        if len(conteudo.strip()) < Config.MIN_CONTENT_LENGTH:
-            return jsonify({
-                "erro": Config.ERROR_MESSAGES['CONTENT_TOO_SHORT'],
-                "codigo": "CONTENT_TOO_SHORT"
-            }), 422
+        if tipo == 'url':
+            if len(conteudo_limpo) < Config.MIN_URL_LENGTH:
+                return jsonify({
+                    "erro": Config.ERROR_MESSAGES['URL_TOO_SHORT'],
+                    "codigo": "URL_TOO_SHORT"
+                }), 422
+        else:
+            if len(conteudo_limpo) < Config.MIN_CONTENT_LENGTH:
+                return jsonify({
+                    "erro": Config.ERROR_MESSAGES['CONTENT_TOO_SHORT'],
+                    "codigo": "CONTENT_TOO_SHORT"
+                }), 422
 
-        if len(conteudo.strip()) > Config.MAX_CONTENT_LENGTH:
+        if len(conteudo_limpo) > Config.MAX_CONTENT_LENGTH:
             return jsonify({
                 "erro": Config.ERROR_MESSAGES['CONTENT_TOO_LONG'],
                 "codigo": "CONTENT_TOO_LONG"
             }), 422
 
         log_info(
-            f"Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo.strip())}"
+            f"Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo_limpo)}"
         )
 
-                                                                                  
-                                                           
-                                                                                  
+
+
+
         if tipo == 'url':
-                                    
-            validacao_url = validar_url(conteudo)
+
+            validacao_url = validar_url(conteudo_limpo)
             if not validacao_url['valido']:
                 log_info(f"URL inválida: {validacao_url['motivo']}")
                 return jsonify({
@@ -145,11 +153,11 @@ def verificar_noticia():
                                                 
         texto_para_analise = ""
         titulo_noticia = ""
-        url_original = conteudo if tipo == 'url'else None
+        url_original = conteudo_limpo if tipo == 'url'else None
 
         if tipo == 'url':
-            log_info(f"Extraindo conteúdo de: {conteudo}")
-            resultado_extracao = extrair_conteudo(conteudo)
+            log_info(f"Extraindo conteúdo de: {conteudo_limpo}")
+            resultado_extracao = extrair_conteudo(conteudo_limpo)
 
             if not resultado_extracao['sucesso']:
                 return jsonify({
@@ -163,7 +171,7 @@ def verificar_noticia():
             log_info(f"Conteúdo extraído: {len(texto_para_analise)} caracteres")
 
         else:
-            texto_para_analise = conteudo
+            texto_para_analise = conteudo_limpo
             titulo_noticia = texto_para_analise[:100] + "..."
 
                                           
