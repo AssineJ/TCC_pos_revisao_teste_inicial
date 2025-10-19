@@ -174,15 +174,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
           Escolha validar por URL ou texto completo. O NewsTrust retornará um percentual de veracidade com justificativas baseadas em fontes confiáveis.
         </p>
         {isLoading && (
-          <p style={{ 
-            background: 'rgba(59, 130, 246, 0.1)', 
-            padding: '0.75rem 1rem', 
-            borderRadius: '12px',
-            color: '#1e40af',
-            fontSize: '0.9rem',
-            margin: '0.5rem 0 0',
-            border: '1px solid rgba(59, 130, 246, 0.2)'
-          }}>
+          <p className="form__loading-hint">
              <strong>Tempo estimado:</strong> 1-3 minutos. Aguarde enquanto analisamos múltiplas fontes confiáveis.
           </p>
         )}
@@ -244,7 +236,7 @@ export default function VerificationForm({ status, onSubmit, onReset, lastReques
       <div className="form__footer">
         <div className="form__status">
           <strong>{charCount}</strong> caracteres
-          <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
+          <span className="form__hint">
             (mínimo: {currentConfig.minLength}
             {typeof currentConfig.maxLength === 'number' ? `, máximo: ${currentConfig.maxLength}` : ''})
           </span>

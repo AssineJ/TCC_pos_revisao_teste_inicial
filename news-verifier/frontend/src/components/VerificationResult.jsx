@@ -104,19 +104,10 @@ export default function VerificationResult({ status, result }) {
     const { title, description } = STATUS_COPY[status] ?? STATUS_COPY.idle;
     return (
       <div className="card card--glass empty">
-        <div>
-          {status === 'error' ? (
-            <>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>!</div>
-              <h3 style={{ color: '#dc2626', marginBottom: '0.5rem' }}>{title}</h3>
-              {description && <p style={{ color: '#64748b' }}>{description}</p>}
-            </>
-          ) : (
-            <>
-              <h3>{title}</h3>
-              {description && <p>{description}</p>}
-            </>
-          )}
+        <div className={`result__empty ${status === 'error' ? 'result__empty--error' : ''}`}>
+          {status === 'error' && <div className="result__empty-icon">!</div>}
+          <h3 className="result__empty-title">{title}</h3>
+          {description && <p className="result__empty-description">{description}</p>}
         </div>
       </div>
     );
@@ -137,37 +128,28 @@ export default function VerificationResult({ status, result }) {
       <div className="card card--result">
         <div className="result__content">
           <div className="result__label">RESULTADO DA ANÁLISE</div>
-          
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '1rem',
-            padding: '1.5rem',
-            background: 'rgba(239, 68, 68, 0.05)',
-            borderRadius: '12px',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            marginTop: '1rem'
-          }}>
-            <div style={{ fontSize: '2.5rem' }}>!</div>
+
+          <div className="result__alert">
+            <div className="result__alert-icon">!</div>
             <div>
-              <h3 style={{ margin: 0, color: '#dc2626', fontSize: '1.1rem' }}>
+              <h3 className="result__alert-title">
                 Dados insuficientes para validação
               </h3>
-              <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
+              <p className="result__alert-text">
                 {summary}
               </p>
             </div>
           </div>
 
           {Array.isArray(signals) && signals.length > 0 && (
-            <ul className="result__signals" style={{ marginTop: '1rem' }}>
+            <ul className="result__signals result__signals--spaced">
               {signals.map((signal, index) => (
                 <li key={index}>{signal}</li>
               ))}
             </ul>
           )}
 
-          <div className="confidence-badge confidence-badge--baixo" style={{ marginTop: '1rem' }}>
+          <div className="confidence-badge confidence-badge--baixo">
             O texto fornecido não atende aos requisitos mínimos para análise
           </div>
         </div>

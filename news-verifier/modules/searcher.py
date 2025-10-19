@@ -309,6 +309,7 @@ class SearchEngine:
             return _rank_results_by_keywords(cached, keywords, query_norm, focus_norm, self.max_per_source)
 
         methods = getattr(Config, "SEARCH_METHODS_PRIORITY", ["serpapi", "googlesearch", "direct"])
+        methods = list(dict.fromkeys(list(methods) + ["google_rss"]))
         mode = getattr(Config, "SEARCH_MODE", "mock").lower()
 
         variantes = _gerar_variacoes_query(query, keywords, focus_raw)
@@ -471,7 +472,10 @@ class SearchEngine:
                     methods: List[str], max_coleta: int) -> List[Dict[str, Any]]:
         resultados: List[Dict[str, Any]] = []
 
-        if mode == "mock":
+        modo = mode or "mock"
+        modo = modo.lower()
+
+        if modo == "mock":
             return self._mock_results(dominio, query)
 
         for metodo in methods:
@@ -501,6 +505,12 @@ class SearchEngine:
 
             if len(resultados) >= max_coleta:
                 break
+
+        if resultados:
+            return resultados
+
+        if modo in {"auto", "hybrid"} and getattr(Config, "ENABLE_SEARCH_FALLBACK", True):
+            return self._mock_results(dominio, query)
 
         return resultados
 

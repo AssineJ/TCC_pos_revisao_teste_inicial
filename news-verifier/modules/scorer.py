@@ -18,7 +18,7 @@ Data: 2025
 """
 
 from config import Config
-from datetime import datetime
+from typing import Any, Dict, Tuple
 
 
 class VeracityScorer:
@@ -30,6 +30,9 @@ class VeracityScorer:
         """Inicializa scorer com configurações"""
         self.min_score = Config.MIN_VERACITY_SCORE
         self.max_score = Config.MAX_VERACITY_SCORE
+        self.default_reliability = getattr(Config, 'DEFAULT_SOURCE_RELIABILITY', 0.9)
+        self.priority_boosts = getattr(Config, 'SOURCE_PRIORITY_BOOSTS', {})
+        self.reliability_index = self._build_reliability_index()
     
     
     def calcular_veracidade(self, resultado_analise_semantica, metadata_contexto=None):
@@ -60,20 +63,29 @@ class VeracityScorer:
         nao_relacionados = meta.get('nao_relacionados', 0)
         
                                                                  
+        pesos_confirmacao, soma_pesos, destaques_fontes = self._agrupar_pesos_confirmacao(
+            resultado_analise_semantica
+        )
+
         if contradizem > 0:
             print(f"\n  ALERTA: {contradizem} fonte(s) CONTRADIZEM a informação!")
-            score_base = 10.0                                   
+            score_base = 10.0
             detalhes_calculo = {
                 'motivo': 'Fontes contradizem a informação',
-                'contradizem': contradizem
+                'contradizem': contradizem,
+                'pesos_confirmacao': self._formatar_pesos(pesos_confirmacao),
+                'divisor_ponderado': round(soma_pesos, 2),
+                'destaques_fontes': destaques_fontes
             }
         else:
-                                                          
+
             score_base, detalhes_calculo = self._calcular_score_base(
                 total_analisados,
                 confirmam_forte,
                 confirmam_parcial,
-                apenas_mencionam
+                apenas_mencionam,
+                pesos_confirmacao,
+                soma_pesos
             )
         
                                       
@@ -92,7 +104,8 @@ class VeracityScorer:
                 score_com_penalidades,
                 confirmam_forte,
                 total_analisados,
-                resultado_analise_semantica
+                resultado_analise_semantica,
+                destaques_fontes
             )
         else:
             bonus = {}
@@ -133,16 +146,78 @@ class VeracityScorer:
                 'score_com_penalidades': round(score_com_penalidades, 2),
                 'score_com_bonus': round(score_com_bonus, 2),
                 'score_final': score_final,
-                'contradizem': contradizem         
+                'contradizem': contradizem,
+                'pesos_confirmacao': self._formatar_pesos(pesos_confirmacao),
+                'divisor_ponderado': round(soma_pesos, 2),
+                'destaques_fontes': destaques_fontes
             },
             'nivel_confianca': nivel_confianca
         }
-    
-    
-    def _calcular_score_base(self, total, forte, parcial, menciona):
+
+
+    def _build_reliability_index(self) -> Dict[str, float]:
+        index: Dict[str, float] = {}
+        for fonte in getattr(Config, 'TRUSTED_SOURCES', []):
+            nome = fonte.get('nome')
+            if not nome:
+                continue
+            confiabilidade = fonte.get('confiabilidade', self.default_reliability)
+            boost = self.priority_boosts.get(nome, 0.0)
+            index[nome] = max(0.1, confiabilidade + boost)
+        return index
+
+    def _obter_peso_fonte(self, fonte_nome: str) -> float:
+        return self.reliability_index.get(fonte_nome, self.default_reliability + self.priority_boosts.get(fonte_nome, 0.0))
+
+    def _agrupar_pesos_confirmacao(self, analise: Dict[str, Any]) -> Tuple[Dict[str, float], float, Dict[str, Dict[str, Any]]]:
+        pesos = {
+            'confirma_forte': 0.0,
+            'confirma_parcial': 0.0,
+            'menciona': 0.0
+        }
+        destaques: Dict[str, Dict[str, Any]] = {}
+        soma_pesos = 0.0
+
+        for fonte_nome, fonte_analises in analise.items():
+            if fonte_nome == 'metadata':
+                continue
+
+            peso_fonte = self._obter_peso_fonte(fonte_nome)
+
+            for item in fonte_analises:
+                if not item.get('sucesso'):
+                    continue
+
+                status = item.get('status')
+                if status == 'confirma_forte':
+                    pesos['confirma_forte'] += peso_fonte
+                    soma_pesos += peso_fonte
+                    info = destaques.setdefault(fonte_nome, {'forte': 0, 'parcial': 0, 'menciona': 0, 'peso_total': 0.0})
+                    info['forte'] += 1
+                    info['peso_total'] += peso_fonte
+                elif status == 'confirma_parcial':
+                    pesos['confirma_parcial'] += peso_fonte
+                    soma_pesos += peso_fonte
+                    info = destaques.setdefault(fonte_nome, {'forte': 0, 'parcial': 0, 'menciona': 0, 'peso_total': 0.0})
+                    info['parcial'] += 1
+                    info['peso_total'] += peso_fonte
+                elif status == 'menciona':
+                    pesos['menciona'] += peso_fonte
+                    soma_pesos += peso_fonte
+                    info = destaques.setdefault(fonte_nome, {'forte': 0, 'parcial': 0, 'menciona': 0, 'peso_total': 0.0})
+                    info['menciona'] += 1
+                    info['peso_total'] += peso_fonte
+
+        return pesos, soma_pesos, destaques
+
+    def _formatar_pesos(self, pesos: Dict[str, float]) -> Dict[str, float]:
+        return {chave: round(valor, 2) for chave, valor in pesos.items()}
+
+    def _calcular_score_base(self, total, forte, parcial, menciona,
+                              pesos_ponderados: Dict[str, float], soma_pesos: float):
         """
         Calcula score base usando pesos configurados.
-        
+
         Args:
             total (int): Total de fontes analisadas
             forte (int): Fontes que confirmam fortemente
@@ -153,26 +228,40 @@ class VeracityScorer:
             tuple: (score, detalhes)
         """
         if total == 0:
-            return (10.0, {'motivo': 'Nenhuma fonte analisada'})
-        
-                        
-        peso_forte = forte * Config.WEIGHT_STRONG_CONFIRMATION
-        peso_parcial = parcial * Config.WEIGHT_PARTIAL_CONFIRMATION
-        peso_menciona = menciona * Config.WEIGHT_MENTION
-        
+            return (10.0, {'motivo': 'Nenhuma fonte analisada', 'pesos_confirmacao': self._formatar_pesos(pesos_ponderados), 'divisor_ponderado': 0.0})
+
+
+        if soma_pesos and soma_pesos > 0:
+            base_forte = pesos_ponderados.get('confirma_forte', 0.0)
+            base_parcial = pesos_ponderados.get('confirma_parcial', 0.0)
+            base_menciona = pesos_ponderados.get('menciona', 0.0)
+        else:
+            base_forte = float(forte)
+            base_parcial = float(parcial)
+            base_menciona = float(menciona)
+
+        peso_forte = base_forte * Config.WEIGHT_STRONG_CONFIRMATION
+        peso_parcial = base_parcial * Config.WEIGHT_PARTIAL_CONFIRMATION
+        peso_menciona = base_menciona * Config.WEIGHT_MENTION
+
         peso_total = peso_forte + peso_parcial + peso_menciona
-        
-                                  
-        score_base = (peso_total / total) * 100
-        
+
+
+        divisor = soma_pesos if soma_pesos and soma_pesos > 0 else float(total)
+        divisor = divisor if divisor > 0 else 1.0
+
+        score_base = (peso_total / divisor) * 100
+
         detalhes = {
             'peso_forte': peso_forte,
             'peso_parcial': peso_parcial,
             'peso_menciona': peso_menciona,
             'peso_total': peso_total,
-            'divisor': total
+            'divisor': divisor,
+            'pesos_confirmacao': self._formatar_pesos(pesos_ponderados),
+            'divisor_ponderado': round(soma_pesos, 2)
         }
-        
+
         return (score_base, detalhes)
     
     
@@ -253,10 +342,10 @@ class VeracityScorer:
         return (penalidades, score_atual)
     
     
-    def _aplicar_bonus(self, score, forte, total, analise):
+    def _aplicar_bonus(self, score, forte, total, analise, destaques_fontes):
         """
         Aplica bônus ao score.
-        
+
         Bônus:
         - Alta taxa de confirmação forte (>70%): +10%
         - Múltiplas fontes (>=5): +5%
@@ -306,6 +395,24 @@ class VeracityScorer:
             }
             score_atual *= (1 + aumento/100)
         
+        g1_destaque = (destaques_fontes or {}).get('G1')
+        if g1_destaque and g1_destaque.get('forte', 0) > 0:
+            aumento = getattr(Config, 'G1_STRONG_CONFIRMATION_BONUS', 0.08)
+            percentual = aumento * 100
+            bonus['destaque_g1'] = {
+                'percentual': percentual,
+                'motivo': f"G1 confirma fortemente ({g1_destaque['forte']} ocorrência(s))"
+            }
+            score_atual *= (1 + aumento)
+        elif g1_destaque and g1_destaque.get('parcial', 0) > 0 and forte == 0:
+            aumento = getattr(Config, 'G1_PARTIAL_CONFIRMATION_BONUS', 0.04)
+            percentual = aumento * 100
+            bonus['destaque_g1'] = {
+                'percentual': percentual,
+                'motivo': f"G1 confirma parcialmente ({g1_destaque['parcial']} ocorrência(s))"
+            }
+            score_atual *= (1 + aumento)
+
         return (bonus, score_atual)
     
     
