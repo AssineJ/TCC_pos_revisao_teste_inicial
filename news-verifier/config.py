@@ -126,6 +126,7 @@ class Config:
     
                                                           
     MIN_CONTENT_LENGTH = int(os.getenv('MIN_CONTENT_LENGTH', 50))
+    MIN_URL_LENGTH = int(os.getenv('MIN_URL_LENGTH', 10))
     
                                              
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 500))
@@ -278,6 +279,7 @@ class Config:
         'INVALID_TYPE': "Tipo deve ser 'url'ou 'texto'",
         'EMPTY_CONTENT': 'Conteúdo não pode estar vazio',
         'CONTENT_TOO_SHORT': f'Conteúdo muito curto para análise (mínimo {MIN_CONTENT_LENGTH} caracteres)',
+        'URL_TOO_SHORT': f'URL muito curta. Informe o endereço completo (mínimo {MIN_URL_LENGTH} caracteres)',
         'CONTENT_TOO_LONG': f'Conteúdo muito longo (máximo {MAX_CONTENT_LENGTH} caracteres)',
         'INVALID_URL': 'URL inválida ou inacessível',
         'TIMEOUT': 'Tempo limite excedido durante a análise',
@@ -417,7 +419,10 @@ def validate_config():
     
     if Config.MIN_CONTENT_LENGTH < 10:
         errors.append("MIN_CONTENT_LENGTH deve ser >= 10 caracteres")
-    
+
+    if Config.MIN_URL_LENGTH < 5:
+        errors.append("MIN_URL_LENGTH deve ser >= 5 caracteres")
+
     if Config.MAX_CONTENT_LENGTH < Config.MIN_CONTENT_LENGTH:
         errors.append("MAX_CONTENT_LENGTH deve ser maior que MIN_CONTENT_LENGTH")
     
