@@ -128,7 +128,7 @@ class Config:
     MIN_CONTENT_LENGTH = int(os.getenv('MIN_CONTENT_LENGTH', 50))
     
                                              
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 300))
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 500))
     
                                                
     MAX_KEYWORDS = 10
@@ -228,7 +228,7 @@ class Config:
                                                                               
     
                                                                           
-    SEARCH_MODE = os.getenv('SEARCH_MODE', 'mock')
+    SEARCH_MODE = os.getenv('SEARCH_MODE', 'auto')
     
                                                                         
     ENABLE_SEARCH_FALLBACK = True
@@ -240,7 +240,17 @@ class Config:
     MAX_SEARCH_RESULTS = 3
     
                                                  
-    SEARCH_DELAY = 1.5            
+    SEARCH_DELAY = 1.5
+
+    DEFAULT_SOURCE_RELIABILITY = 0.9
+
+    SOURCE_PRIORITY_BOOSTS = {
+        'G1': 0.05
+    }
+
+    G1_STRONG_CONFIRMATION_BONUS = 0.08
+
+    G1_PARTIAL_CONFIRMATION_BONUS = 0.04
     
     
                                                                               

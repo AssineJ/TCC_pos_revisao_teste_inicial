@@ -47,39 +47,21 @@ export default function LoadingIndicator() {
       </div>
       
       <div className="loading__text">
-        <strong style={{ fontSize: '1.1rem' }}>Verificando autenticidade</strong>
-        <p style={{ margin: '0.5rem 0', color: '#475569' }}>
+        <strong className="loading__title">Verificando autenticidade</strong>
+        <p className="loading__message">
           {currentMessage.message}
         </p>
-        
-        <div style={{
-          width: '100%',
-          height: '8px',
-          background: 'rgba(148, 163, 184, 0.2)',
-          borderRadius: '999px',
-          overflow: 'hidden',
-          margin: '1rem 0 0.5rem'
-        }}>
-          <div style={{
-            width: `${progress}%`,
-            height: '100%',
-            background: 'linear-gradient(90deg, #38bdf8 0%, #6366f1 100%)',
-            borderRadius: '999px',
-            transition: 'width 1s ease'
-          }} />
+
+        <div className="loading__progress">
+          <div className="loading__progress-bar" style={{ width: `${progress}%` }} />
         </div>
-        
-        <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0' }}>
+
+        <p className="loading__elapsed">
           {elapsedTime}s decorridos - Tempo estimado: 1-3 minutos
         </p>
-        
+
         {elapsedTime > 120 && (
-          <p style={{ 
-            fontSize: '0.9rem', 
-            color: '#f59e0b', 
-            margin: '0.5rem 0 0',
-            fontWeight: '600'
-          }}>
+          <p className="loading__warning">
              Análise mais demorada que o normal, aguarde...
           </p>
         )}
