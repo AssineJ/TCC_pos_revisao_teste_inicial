@@ -100,6 +100,12 @@ def verificar_noticia():
                     "erro": Config.ERROR_MESSAGES['URL_TOO_SHORT'],
                     "codigo": "URL_TOO_SHORT"
                 }), 422
+
+            if len(conteudo_limpo) > Config.MAX_URL_LENGTH:
+                return jsonify({
+                    "erro": Config.ERROR_MESSAGES['URL_TOO_LONG'],
+                    "codigo": "URL_TOO_LONG"
+                }), 422
         else:
             if len(conteudo_limpo) < Config.MIN_CONTENT_LENGTH:
                 return jsonify({
@@ -107,11 +113,11 @@ def verificar_noticia():
                     "codigo": "CONTENT_TOO_SHORT"
                 }), 422
 
-        if len(conteudo_limpo) > Config.MAX_CONTENT_LENGTH:
-            return jsonify({
-                "erro": Config.ERROR_MESSAGES['CONTENT_TOO_LONG'],
-                "codigo": "CONTENT_TOO_LONG"
-            }), 422
+            if len(conteudo_limpo) > Config.MAX_CONTENT_LENGTH:
+                return jsonify({
+                    "erro": Config.ERROR_MESSAGES['CONTENT_TOO_LONG'],
+                    "codigo": "CONTENT_TOO_LONG"
+                }), 422
 
         log_info(
             f"Requisição recebida: tipo={tipo} | tamanho_conteudo={len(conteudo_limpo)}"

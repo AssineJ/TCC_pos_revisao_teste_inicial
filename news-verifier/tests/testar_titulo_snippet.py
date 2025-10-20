@@ -40,7 +40,7 @@ if response.status_code == 200:
     print()
     
     print("FONTES:")
-    fontes_paywall = ['Folha de S.Paulo', 'UOL Notícias', 'Estadão']
+    fontes_paywall = ['Folha de S.Paulo', 'Estadão']
     
     for i, fonte in enumerate(resultado['fontes_consultadas'][:10], 1):
         nome = fonte['nome']
@@ -69,10 +69,11 @@ if response.status_code == 200:
         if fonte['nome'] in fontes_paywall and fonte['similaridade'] > 0:
             fontes_com_paywall_ok += 1
     
-    print(f"Fontes com paywall funcionando: {fontes_com_paywall_ok}/3")
+    total_paywall = len(fontes_paywall)
+    print(f"Fontes com paywall funcionando: {fontes_com_paywall_ok}/{total_paywall}")
     print()
-    
-    if fontes_com_paywall_ok >= 2:
+
+    if fontes_com_paywall_ok >= max(1, total_paywall - 1):
         print("SOLUÇÃO FUNCIONANDO!")
         print("   Fontes com paywall agora usam título+snippet")
     else:

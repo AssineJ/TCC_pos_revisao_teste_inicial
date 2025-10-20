@@ -62,10 +62,10 @@ class Config:
             "ativo": True
         },
         {
-            "nome": "UOL Notícias",
-            "dominio": "noticias.uol.com.br",
-            "url_base": "https://noticias.uol.com.br",
-            "url_busca": "https://noticias.uol.com.br/busca/?q=",
+            "nome": "CNN Brasil",
+            "dominio": "cnnbrasil.com.br",
+            "url_base": "https://www.cnnbrasil.com.br",
+            "url_busca": "https://www.cnnbrasil.com.br/busca/?q=",
             "confiabilidade": 0.90,
             "ativo": True
         },
@@ -91,7 +91,7 @@ class Config:
     TRUSTED_DOMAINS = [fonte["dominio"] for fonte in TRUSTED_SOURCES]
     
                                                                       
-    SOURCES_WITH_PAYWALL = ['Folha de S.Paulo', 'UOL Notícias', 'Estadão']
+    SOURCES_WITH_PAYWALL = ['Folha de S.Paulo', 'Estadão']
     
                                            
     MAX_RESULTS_PER_SOURCE = 2
@@ -127,6 +127,7 @@ class Config:
                                                           
     MIN_CONTENT_LENGTH = int(os.getenv('MIN_CONTENT_LENGTH', 50))
     MIN_URL_LENGTH = int(os.getenv('MIN_URL_LENGTH', 10))
+    MAX_URL_LENGTH = int(os.getenv('MAX_URL_LENGTH', 2048))
     
                                              
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 500))
@@ -232,7 +233,7 @@ class Config:
     SEARCH_MODE = os.getenv('SEARCH_MODE', 'auto')
     
                                                                         
-    ENABLE_SEARCH_FALLBACK = True
+    ENABLE_SEARCH_FALLBACK = os.getenv('ENABLE_SEARCH_FALLBACK', 'False').lower() == 'true'
     
                                                             
     SEARCH_METHODS_PRIORITY = ['serpapi', 'google_rss', 'googlesearch', 'direct']
@@ -280,6 +281,7 @@ class Config:
         'EMPTY_CONTENT': 'Conteúdo não pode estar vazio',
         'CONTENT_TOO_SHORT': f'Conteúdo muito curto para análise (mínimo {MIN_CONTENT_LENGTH} caracteres)',
         'URL_TOO_SHORT': f'URL muito curta. Informe o endereço completo (mínimo {MIN_URL_LENGTH} caracteres)',
+        'URL_TOO_LONG': f'URL muito longa (máximo {MAX_URL_LENGTH} caracteres)',
         'CONTENT_TOO_LONG': f'Conteúdo muito longo (máximo {MAX_CONTENT_LENGTH} caracteres)',
         'INVALID_URL': 'URL inválida ou inacessível',
         'TIMEOUT': 'Tempo limite excedido durante a análise',

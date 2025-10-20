@@ -3,6 +3,7 @@ import json
 import time
 
 BASE_URL = 'http://127.0.0.1:5000'
+PAYWALL_SOURCES = ['Folha de S.Paulo', 'Estadão']
 
 print("=" * 70)
 print("TESTE COMPLETO: MÚLTIPLAS NOTÍCIAS")
@@ -109,14 +110,15 @@ for i, noticia in enumerate(noticias_teste, 1):
             print()
             
                                           
-            fontes_paywall = ['Folha de S.Paulo', 'UOL Notícias', 'Estadão']
+            fontes_paywall = PAYWALL_SOURCES
+            total_paywall = len(fontes_paywall)
             fontes_paywall_funcionando = []
             
             for fonte in resultado['fontes_consultadas']:
                 if fonte['nome'] in fontes_paywall and fonte['similaridade'] > 0:
                     fontes_paywall_funcionando.append(fonte['nome'])
             
-            print(f"Fontes com paywall funcionando: {len(fontes_paywall_funcionando)}/3")
+            print(f"Fontes com paywall funcionando: {len(fontes_paywall_funcionando)}/{total_paywall}")
             if fontes_paywall_funcionando:
                 for f in fontes_paywall_funcionando:
                     print(f"    {f}")
@@ -178,12 +180,14 @@ print(f"Taxa de sucesso: {sucessos}/{total} ({sucessos/total*100:.0f}%)")
 print()
 
                       
+total_paywall = len(PAYWALL_SOURCES)
+
 print(f"{'Teste':<30} {'Sucesso':<10} {'Verac.':<10} {'Fontes':<10} {'Paywall'}")
 print("-" * 70)
 
 for r in resultados_testes:
     if r['sucesso']:
-        print(f"{r['nome']:<30} {'':<10} {str(r['veracidade'])+'%':<10} {r['total_fontes']:<10} {r['fontes_paywall_ok']}/3")
+        print(f"{r['nome']:<30} {'':<10} {str(r['veracidade'])+'%':<10} {r['total_fontes']:<10} {r['fontes_paywall_ok']}/{total_paywall}")
     else:
         print(f"{r['nome']:<30} {'':<10} {'-':<10} {'-':<10} -")
 
@@ -201,7 +205,7 @@ if sucessos > 0:
     print(f"Veracidade média: {veracidade_media:.1f}%")
     print(f"Tempo médio: {tempo_medio:.1f}s")
     print(f"Fontes média: {fontes_media:.1f}")
-    print(f"Paywall funcionando: {paywall_media:.1f}/3")
+    print(f"Paywall funcionando: {paywall_media:.1f}/{total_paywall}")
     print()
     
                                     
@@ -233,7 +237,11 @@ else:
 print()
 
                                        
-paywall_ok_count = sum(1 for r in resultados_testes if r.get('sucesso') and r.get('fontes_paywall_ok', 0) >= 2)
+paywall_ok_count = sum(
+    1
+    for r in resultados_testes
+    if r.get('sucesso') and r.get('fontes_paywall_ok', 0) >= total_paywall
+)
 
 if paywall_ok_count >= total * 0.8:
     print("SOLUÇÃO TÍTULO+SNIPPET FUNCIONANDO!")
