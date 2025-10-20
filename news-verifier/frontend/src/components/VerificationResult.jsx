@@ -17,7 +17,7 @@ const STATUS_COPY = {
 export const PORTAL_LOGOS = {
   'G1': { src: '/assets/g1-logo.png', alt: 'G1' },
   'Folha de S.Paulo': { src: '/assets/logo-folha.png', alt: 'Folha de S.Paulo' },
-  'UOL Notícias': { src: '/assets/uol-logo.jpg', alt: 'UOL Notícias' },
+  'CNN Brasil': { src: '/assets/cnn-logo.svg', alt: 'CNN Brasil' },
   'IstoÉ': { src: '/assets/istoe-logo.jpeg', alt: 'IstoÉ' },
   'Estadão': { src: '/assets/estadao-logo.png', alt: 'Estadão' }
 };
